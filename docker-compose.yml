@@ -1,0 +1,8 @@
+services:
+  trading-engine:
+    build: ./services/trading-engine
+    env_file:
+      - ./services/trading-engine/.env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
