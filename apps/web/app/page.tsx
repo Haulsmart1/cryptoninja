@@ -49,7 +49,6 @@ export default function HomePage() {
             ].map(([title, text, Icon]) => (
               <div key={title as string} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
                 <div className="flex items-center gap-3">
-                  {/* @ts-expect-error dynamic icon */}
                   <Icon className="h-5 w-5 text-cyan-300" />
                   <p className="font-bold text-white">{title as string}</p>
                 </div>
