@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import AICommandCenter from "../../components/AICommandCenter";
 import { createClient } from "../../lib/supabase-browser";
 
 type EngineHealth = {
@@ -198,6 +199,8 @@ export default function DashboardPage() {
             </div>
           </div>
         </section>
+
+        <AICommandCenter />
 
         <section className="mt-8 grid gap-4 md:grid-cols-4">
           <Card label="Portfolio Value" value={loading ? "Loading..." : `£${estimatedPortfolioValue.toLocaleString()}`} />
@@ -495,6 +498,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
 
 
