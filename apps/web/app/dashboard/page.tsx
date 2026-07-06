@@ -107,7 +107,32 @@ export default function DashboardPage() {
     0
   );
 
-  const openPositions = new Set(trades.map((trade) => trade.symbol)).size;
+  const holdings = trades.reduce<Record<string, { symbol: string; quantity: number; cost: number }>>(
+    (acc, trade) => {
+      if (!acc[trade.symbol]) {
+        acc[trade.symbol] = { symbol: trade.symbol, quantity: 0, cost: 0 };
+      }
+
+      const quantity = Number(trade.quantity || 0);
+      const value = Number(trade.value_gbp || 0);
+
+      if (trade.side.toLowerCase() === "buy") {
+        acc[trade.symbol].quantity += quantity;
+        acc[trade.symbol].cost += value;
+      }
+
+      if (trade.side.toLowerCase() === "sell") {
+        acc[trade.symbol].quantity -= quantity;
+        acc[trade.symbol].cost -= value;
+      }
+
+      return acc;
+    },
+    {}
+  );
+
+  const holdingRows = Object.values(holdings).filter((holding) => holding.quantity > 0);
+  const openPositions = holdingRows.length;
   const startingBalance = 10000;
   const estimatedPortfolioValue = latestCash + investedCapital;
   const totalPnl = estimatedPortfolioValue - startingBalance;
@@ -224,6 +249,45 @@ export default function DashboardPage() {
         </section>
 
         <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+          <h2 className="text-2xl font-black">Open Positions</h2>
+
+          <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-white/[0.04] text-slate-400">
+                <tr>
+                  <th className="p-4">Asset</th>
+                  <th className="p-4">Quantity</th>
+                  <th className="p-4">Cost Basis</th>
+                  <th className="p-4">Avg Entry</th>
+                  <th className="p-4">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {holdingRows.length === 0 ? (
+                  <tr>
+                    <td className="p-4 text-slate-400" colSpan={5}>
+                      No open positions yet.
+                    </td>
+                  </tr>
+                ) : (
+                  holdingRows.map((holding) => (
+                    <tr key={holding.symbol} className="border-t border-white/10">
+                      <td className="p-4 font-bold">{holding.symbol}</td>
+                      <td className="p-4">{holding.quantity}</td>
+                      <td className="p-4">£{holding.cost.toFixed(2)}</td>
+                      <td className="p-4">
+                        £{(holding.cost / holding.quantity).toLocaleString()}
+                      </td>
+                      <td className="p-4 text-emerald-300">Open</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-6">
           <h2 className="text-2xl font-black">Recent Paper Trades</h2>
 
           <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
@@ -295,4 +359,5 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
