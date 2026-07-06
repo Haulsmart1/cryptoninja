@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AICommandCenter from "../../components/AICommandCenter";
 import AISignalFeed from "../../components/AISignalFeed";
+import EquityCurve from "../../components/EquityCurve";
 import { createClient } from "../../lib/supabase-browser";
 
 type EngineHealth = {
@@ -244,7 +245,11 @@ export default function DashboardPage() {
           <Card label="Risk" value="Protected" />
         </section>
 
-        <section className="mt-8 grid gap-6 lg:grid-cols-3">
+        <div className="mt-8">
+  <EquityCurve portfolioValue={estimatedPortfolioValue} />
+</div>
+
+<section className="mt-8 grid gap-6 lg:grid-cols-3">
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 lg:col-span-2">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-black">Trading Engine</h2>
@@ -529,6 +534,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
 
 
