@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [prices, setPrices] = useState<Record<string, number | null>>({});
   const [runningTrade, setRunningTrade] = useState(false);
   const [message, setMessage] = useState("");
+  const [selectedTrade, setSelectedTrade] = useState<PaperTrade | null>(null);
 
   async function loadHealth() {
     try {
@@ -373,7 +374,11 @@ export default function DashboardPage() {
                   </tr>
                 ) : (
                   trades.map((trade) => (
-                    <tr key={trade.id} className="border-t border-white/10">
+                    <tr
+                      key={trade.id}
+                      onClick={() => setSelectedTrade(trade)}
+                      className="cursor-pointer border-t border-white/10 hover:bg-white/5"
+                    >
                       <td className="p-4 text-slate-400">
                         {new Date(trade.created_at).toLocaleString()}
                       </td>
@@ -390,6 +395,37 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
+
+      {selectedTrade && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/60">
+          <div className="h-full w-full max-w-lg overflow-y-auto border-l border-white/10 bg-[#050b1f] p-8 shadow-2xl">
+            <button
+              onClick={() => setSelectedTrade(null)}
+              className="rounded-xl border border-white/10 px-4 py-2 font-bold hover:bg-white/10"
+            >
+              Close
+            </button>
+
+            <p className="mt-8 text-sm font-bold tracking-[0.35em] text-cyan-300">
+              TRADE DETAILS
+            </p>
+
+            <h2 className="mt-3 text-4xl font-black">{selectedTrade.symbol}</h2>
+
+            <div className="mt-8 space-y-4">
+              <InfoRow label="Trade ID" value={selectedTrade.id} />
+              <InfoRow label="Side" value={selectedTrade.side.toUpperCase()} />
+              <InfoRow label="Quantity" value={selectedTrade.quantity} />
+              <InfoRow label="Price" value={`£${selectedTrade.price}`} />
+              <InfoRow label="Value" value={`£${selectedTrade.value_gbp}`} />
+              <InfoRow label="Cash After Trade" value={`£${selectedTrade.cash_gbp ?? "0"}`} />
+              <InfoRow label="Status" value={selectedTrade.status} />
+              <InfoRow label="Reason" value={selectedTrade.reason ?? "-"} />
+              <InfoRow label="Time" value={new Date(selectedTrade.created_at).toLocaleString()} />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -442,6 +478,15 @@ function AllocationRow({
   );
 }
 
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-b border-white/10 pb-3">
+      <p className="text-sm text-slate-400">{label}</p>
+      <p className="mt-1 break-all font-bold text-white">{value}</p>
+    </div>
+  );
+}
+
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
@@ -450,6 +495,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
 
 
