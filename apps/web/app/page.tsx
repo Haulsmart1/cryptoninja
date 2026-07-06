@@ -103,9 +103,7 @@ export default function HomePage() {
             <Link href="/dashboard" className="rounded-xl border border-white/10 px-5 py-3 text-sm font-bold hover:bg-white/10">
               Demo
             </Link>
-            <Link href="/login" className="rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 hover:bg-cyan-200">
-              Log in
-            </Link>
+            <Link href="/login" className="rounded-xl border border-white/10 px-5 py-3 text-sm font-bold hover:bg-white/10">Log in</Link><Link href="/register" className="rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 hover:bg-cyan-200">Register</Link>
           </div>
         </nav>
 
@@ -123,9 +121,7 @@ export default function HomePage() {
               professional trading platform.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
-              <Link href="/login" className="rounded-2xl bg-cyan-300 px-7 py-4 font-black text-slate-950 hover:bg-cyan-200">
-                Start with Magic Link
-              </Link>
+              <Link href="/register" className="rounded-2xl bg-cyan-300 px-7 py-4 font-black text-slate-950 hover:bg-cyan-200">Create free account</Link>
               <Link href="/dashboard" className="rounded-2xl border border-white/10 px-7 py-4 font-black hover:bg-white/10">
                 View Dashboard
               </Link>
@@ -237,3 +233,4 @@ function Card({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
