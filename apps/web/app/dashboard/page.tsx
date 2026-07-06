@@ -102,6 +102,17 @@ export default function DashboardPage() {
       ? Number(trades[0].cash_gbp)
       : health?.cash_gbp ?? 0;
 
+  const investedCapital = trades.reduce(
+    (total, trade) => total + Number(trade.value_gbp || 0),
+    0
+  );
+
+  const openPositions = new Set(trades.map((trade) => trade.symbol)).size;
+  const startingBalance = 10000;
+  const estimatedPortfolioValue = latestCash + investedCapital;
+  const totalPnl = estimatedPortfolioValue - startingBalance;
+  const totalReturn = (totalPnl / startingBalance) * 100;
+
   const online = health?.status === "healthy";
 
   return (
@@ -147,9 +158,13 @@ export default function DashboardPage() {
         </section>
 
         <section className="mt-8 grid gap-4 md:grid-cols-4">
-          <Card label="Paper Balance" value={loading ? "Loading..." : `£${latestCash.toLocaleString()}`} />
+          <Card label="Portfolio Value" value={loading ? "Loading..." : `£${estimatedPortfolioValue.toLocaleString()}`} />
+          <Card label="Cash" value={`£${latestCash.toLocaleString()}`} />
+          <Card label="Invested" value={`£${investedCapital.toLocaleString()}`} />
+          <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}£${totalPnl.toFixed(2)}`} />
+          <Card label="Return" value={`${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`} />
+          <Card label="Open Positions" value={String(openPositions)} />
           <Card label="Saved Trades" value={String(trades.length)} />
-          <Card label="Mode" value="Paper Trading" />
           <Card label="Risk" value="Protected" />
         </section>
 
@@ -280,3 +295,4 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
