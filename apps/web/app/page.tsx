@@ -16,6 +16,18 @@ const features = [
   "Subscription access",
 ];
 
+const connections = [
+  ["Coinbase Advanced", "Market data, paper trading, live execution"],
+  ["Binance", "Planned exchange connector"],
+  ["Kraken", "Planned exchange connector"],
+  ["Stripe", "Subscription billing"],
+  ["Supabase", "Auth, database, realtime"],
+  ["Telegram", "Trade alerts and risk warnings"],
+  ["Email", "Daily reports and login links"],
+  ["OpenAI", "AI market brief and analysis"],
+  ["TradingView", "Charts and market visuals"],
+];
+
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#020617] text-white">
@@ -99,7 +111,37 @@ export default function HomePage() {
             </div>
           ))}
         </div>
-      </section>
-    </main>
+                <div className="pb-16">
+            <div className="mb-6">
+              <p className="text-sm font-bold tracking-[0.35em] text-cyan-300">
+                CONNECTED PLATFORM
+              </p>
+              <h2 className="mt-3 text-3xl font-black md:text-5xl">
+                Connect your exchanges, alerts, billing and AI.
+              </h2>
+              <p className="mt-4 max-w-3xl text-slate-400">
+                CryptoNinja AI is designed as a modular trading platform. Start
+                with Coinbase and paper trading, then expand to more exchanges,
+                notifications and automated workflows.
+              </p>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {connections.map(([name, description]) => (
+                <div
+                  key={name}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] p-5"
+                >
+                  <p className="text-lg font-black text-white">{name}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    {description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
   );
 }
+
