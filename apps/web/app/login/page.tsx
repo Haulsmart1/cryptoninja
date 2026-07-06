@@ -1,7 +1,7 @@
-"use client";
+ï»¿"use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase-browser";
+import { createClient } from "../../lib/supabase-browser";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -41,7 +41,7 @@ export default function LoginPage() {
         <h1 className="mt-4 text-4xl font-black">Sign in</h1>
 
         <p className="mt-3 text-slate-400">
-          Enter your email and we’ll send you a secure magic link.
+          Enter your email and we will send you a secure magic link.
         </p>
 
         <input
