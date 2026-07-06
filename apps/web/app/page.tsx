@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "CryptoNinja AI | AI Crypto Trading Platform",
@@ -70,7 +71,11 @@ const plans = [
   ["Elite", "£99/mo", "Multi-exchange support, portfolio optimisation and priority features"],
 ];
 
-export default function HomePage() {
+export default function HomePage({ searchParams }: { searchParams?: { code?: string } }) {
+  if (searchParams?.code) {
+    redirect(`/auth/callback?code=${searchParams.code}&next=/dashboard`);
+  }
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -233,4 +238,8 @@ function Card({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+
+
+
 
