@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [health, setHealth] = useState<EngineHealth | null>(null);
   const [trades, setTrades] = useState<PaperTrade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [prices, setPrices] = useState<Record<string, number | null>>({});
   const [runningTrade, setRunningTrade] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -62,8 +63,18 @@ export default function DashboardPage() {
     }
   }
 
+  async function loadPrices() {
+    try {
+      const response = await fetch("/api/market/prices", { cache: "no-store" });
+      const data = await response.json();
+      setPrices(data);
+    } catch {
+      setPrices({});
+    }
+  }
+
   async function refreshAll() {
-    await Promise.all([loadHealth(), loadTrades()]);
+    await Promise.all([loadHealth(), loadTrades(), loadPrices()]);
   }
 
   async function runPaperTrade() {
@@ -134,7 +145,12 @@ export default function DashboardPage() {
   const holdingRows = Object.values(holdings).filter((holding) => holding.quantity > 0);
   const openPositions = holdingRows.length;
   const startingBalance = 10000;
-  const estimatedPortfolioValue = latestCash + investedCapital;
+  const liveHoldingsValue = holdingRows.reduce((total, holding) => {
+    const livePrice = prices[holding.symbol] ?? holding.cost / holding.quantity;
+    return total + holding.quantity * livePrice;
+  }, 0);
+
+  const estimatedPortfolioValue = latestCash + liveHoldingsValue;
   const totalPnl = estimatedPortfolioValue - startingBalance;
   const totalReturn = (totalPnl / startingBalance) * 100;
 
@@ -259,13 +275,16 @@ export default function DashboardPage() {
                   <th className="p-4">Quantity</th>
                   <th className="p-4">Cost Basis</th>
                   <th className="p-4">Avg Entry</th>
+                  <th className="p-4">Live Price</th>
+                  <th className="p-4">Value</th>
+                  <th className="p-4">P&L</th>
                   <th className="p-4">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {holdingRows.length === 0 ? (
                   <tr>
-                    <td className="p-4 text-slate-400" colSpan={5}>
+                    <td className="p-4 text-slate-400" colSpan={8}>
                       No open positions yet.
                     </td>
                   </tr>
@@ -277,6 +296,15 @@ export default function DashboardPage() {
                       <td className="p-4">£{holding.cost.toFixed(2)}</td>
                       <td className="p-4">
                         £{(holding.cost / holding.quantity).toLocaleString()}
+                      </td>
+                      <td className="p-4">
+                        £{Number(prices[holding.symbol] ?? holding.cost / holding.quantity).toLocaleString()}
+                      </td>
+                      <td className="p-4">
+                        £{(holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity)).toFixed(2)}
+                      </td>
+                      <td className="p-4 text-emerald-300">
+                        £{((holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity)) - holding.cost).toFixed(2)}
                       </td>
                       <td className="p-4 text-emerald-300">Open</td>
                     </tr>
@@ -359,5 +387,6 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
 
