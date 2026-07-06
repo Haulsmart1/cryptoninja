@@ -43,10 +43,14 @@ async def run_paper_once():
     trade_value = signal.quantity * signal.price
     decision = risk_engine.check_trade(trade_value)
 
+    signal_dict = signal.__dict__
+
     if not decision.allowed:
+        await logger.log_ai_signal(signal_dict, executed=False)
         return {
             "executed": False,
             "reason": decision.reason,
+            "signal": signal_dict,
         }
 
     trade = broker.execute_trade(
@@ -57,10 +61,12 @@ async def run_paper_once():
         reason=signal.reason,
     )
 
+    await logger.log_ai_signal(signal_dict, executed=True)
     await logger.log_paper_trade(trade.__dict__, broker.cash_gbp)
 
     return {
         "executed": True,
+        "signal": signal_dict,
         "trade": trade.__dict__,
         "cash_gbp": broker.cash_gbp,
     }

@@ -8,6 +8,7 @@ class StrategySignal:
     quantity: float
     price: float
     reason: str
+    confidence: int
 
 
 class DemoStrategy:
@@ -18,4 +19,5 @@ class DemoStrategy:
             quantity=0.001,
             price=50000,
             reason="Demo paper signal. Live trading disabled.",
+            confidence=82,
         )
