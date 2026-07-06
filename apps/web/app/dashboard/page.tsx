@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { createClient } from "../../lib/supabase-browser";
 
 type EngineHealth = {
   status: string;
@@ -10,8 +11,22 @@ type EngineHealth = {
   trades: number;
 };
 
+type PaperTrade = {
+  id: string;
+  symbol: string;
+  side: string;
+  quantity: string;
+  price: string;
+  value_gbp: string;
+  status: string;
+  reason: string | null;
+  cash_gbp: string | null;
+  created_at: string;
+};
+
 export default function DashboardPage() {
   const [health, setHealth] = useState<EngineHealth | null>(null);
+  const [trades, setTrades] = useState<PaperTrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [runningTrade, setRunningTrade] = useState(false);
   const [message, setMessage] = useState("");
@@ -33,6 +48,24 @@ export default function DashboardPage() {
     }
   }
 
+  async function loadTrades() {
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from("paper_trade_logs")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (!error && data) {
+      setTrades(data as PaperTrade[]);
+    }
+  }
+
+  async function refreshAll() {
+    await Promise.all([loadHealth(), loadTrades()]);
+  }
+
   async function runPaperTrade() {
     setRunningTrade(true);
     setMessage("");
@@ -50,7 +83,7 @@ export default function DashboardPage() {
         setMessage("Paper trade executed successfully.");
       }
 
-      await loadHealth();
+      await refreshAll();
     } catch {
       setMessage("Trading engine unavailable.");
     } finally {
@@ -59,10 +92,15 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    loadHealth();
-    const interval = setInterval(loadHealth, 5000);
+    refreshAll();
+    const interval = setInterval(refreshAll, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  const latestCash =
+    trades[0]?.cash_gbp !== null && trades[0]?.cash_gbp !== undefined
+      ? Number(trades[0].cash_gbp)
+      : health?.cash_gbp ?? 0;
 
   const online = health?.status === "healthy";
 
@@ -75,10 +113,7 @@ export default function DashboardPage() {
           </Link>
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/account"
-              className="rounded-xl border border-white/10 px-5 py-3 text-sm font-bold hover:bg-white/10"
-            >
+            <Link href="/account" className="rounded-xl border border-white/10 px-5 py-3 text-sm font-bold hover:bg-white/10">
               Account
             </Link>
 
@@ -97,26 +132,24 @@ export default function DashboardPage() {
             <div>
               <h1 className="text-5xl font-black">CryptoNinja AI Dashboard</h1>
               <p className="mt-3 text-slate-400">
-                Live trading engine status, paper balance, risk controls and bot activity.
+                Live paper trades, Supabase history, risk controls and bot activity.
               </p>
             </div>
 
-            <div
-              className={`rounded-full border px-5 py-3 text-sm font-black ${
-                online
-                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-                  : "border-red-400/30 bg-red-400/10 text-red-300"
-              }`}
-            >
+            <div className={`rounded-full border px-5 py-3 text-sm font-black ${
+              online
+                ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                : "border-red-400/30 bg-red-400/10 text-red-300"
+            }`}>
               {online ? "● Engine Online" : "● Engine Offline"}
             </div>
           </div>
         </section>
 
         <section className="mt-8 grid gap-4 md:grid-cols-4">
-          <Card label="Paper Balance" value={loading ? "Loading..." : `£${health?.cash_gbp?.toLocaleString() ?? 0}`} />
-          <Card label="Trades" value={String(health?.trades ?? 0)} />
-          <Card label="Mode" value={health?.paper_trading ? "Paper Trading" : "Live"} />
+          <Card label="Paper Balance" value={loading ? "Loading..." : `£${latestCash.toLocaleString()}`} />
+          <Card label="Saved Trades" value={String(trades.length)} />
+          <Card label="Mode" value="Paper Trading" />
           <Card label="Risk" value="Protected" />
         </section>
 
@@ -153,7 +186,7 @@ export default function DashboardPage() {
                   <Row name="Trading Engine" status={online ? "Online" : "Offline"} detail="FastAPI service" />
                   <Row name="Paper Broker" status="Active" detail="Simulated execution only" />
                   <Row name="Risk Engine" status="Protected" detail="Trade limits active" />
-                  <Row name="Coinbase" status="Coming Soon" detail="Market data next" />
+                  <Row name="Supabase" status="Connected" detail="Trade logs active" />
                 </tbody>
               </table>
             </div>
@@ -170,8 +203,49 @@ export default function DashboardPage() {
             </Panel>
 
             <Panel title="Next Build">
-              Connect Coinbase market data, then log paper trades into Supabase.
+              Connect Coinbase market data, then convert paper logs into portfolio analytics.
             </Panel>
+          </div>
+        </section>
+
+        <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+          <h2 className="text-2xl font-black">Recent Paper Trades</h2>
+
+          <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-white/[0.04] text-slate-400">
+                <tr>
+                  <th className="p-4">Time</th>
+                  <th className="p-4">Symbol</th>
+                  <th className="p-4">Side</th>
+                  <th className="p-4">Value</th>
+                  <th className="p-4">Cash</th>
+                  <th className="p-4">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trades.length === 0 ? (
+                  <tr>
+                    <td className="p-4 text-slate-400" colSpan={6}>
+                      No paper trades logged yet.
+                    </td>
+                  </tr>
+                ) : (
+                  trades.map((trade) => (
+                    <tr key={trade.id} className="border-t border-white/10">
+                      <td className="p-4 text-slate-400">
+                        {new Date(trade.created_at).toLocaleString()}
+                      </td>
+                      <td className="p-4 font-bold">{trade.symbol}</td>
+                      <td className="p-4 text-cyan-300">{trade.side.toUpperCase()}</td>
+                      <td className="p-4">£{Number(trade.value_gbp).toFixed(2)}</td>
+                      <td className="p-4">£{Number(trade.cash_gbp ?? 0).toLocaleString()}</td>
+                      <td className="p-4 text-emerald-300">{trade.status}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </section>
       </div>
