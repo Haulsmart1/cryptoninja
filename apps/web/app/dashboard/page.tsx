@@ -1,101 +1,208 @@
-import { Bot, Lock, Radio, ShieldCheck } from "lucide-react";
-import { MetricCard } from "@/components/metric-card";
+﻿"use client";
 
-const trades = [
-  { pair: "BTC-GBP", side: "Paper Buy", size: "0.002", status: "Simulated", pnl: "+£8.42" },
-  { pair: "ETH-GBP", side: "Paper Sell", size: "0.03", status: "Simulated", pnl: "+£2.10" },
-  { pair: "SOL-GBP", side: "Paper Buy", size: "1.4", status: "Watched", pnl: "£0.00" }
-];
+import { useEffect, useState } from "react";
+import Link from "next/link";
+
+type EngineHealth = {
+  status: string;
+  paper_trading: boolean;
+  cash_gbp: number;
+  trades: number;
+};
 
 export default function DashboardPage() {
-  return (
-    <main className="min-h-screen px-6 py-6">
-      <div className="mx-auto max-w-7xl">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">Command Center</p>
-            <h1 className="mt-2 text-4xl font-black text-white">CryptoNinja AI</h1>
-          </div>
-          <button className="rounded-2xl border border-red-400/30 bg-red-400/10 px-5 py-3 font-bold text-red-200">
-            Emergency Stop
-          </button>
-        </header>
+  const [health, setHealth] = useState<EngineHealth | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [runningTrade, setRunningTrade] = useState(false);
+  const [message, setMessage] = useState("");
 
-        <section className="mt-8 grid gap-5 md:grid-cols-4">
-          <MetricCard label="Mode" value="Paper" note="Live trading locked" />
-          <MetricCard label="Portfolio" value="£10,000" note="Simulated balance" />
-          <MetricCard label="Today P&L" value="+£10.52" note="Paper result" />
-          <MetricCard label="Risk" value="Safe" note="Limits active" />
+  async function loadHealth() {
+    try {
+      const response = await fetch("/api/trading/health", { cache: "no-store" });
+      const data = await response.json();
+      setHealth(data);
+    } catch {
+      setHealth({
+        status: "offline",
+        paper_trading: true,
+        cash_gbp: 0,
+        trades: 0,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function runPaperTrade() {
+    setRunningTrade(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/trading/run-paper", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!data.executed) {
+        setMessage(data.reason || "Trade blocked.");
+      } else {
+        setMessage("Paper trade executed successfully.");
+      }
+
+      await loadHealth();
+    } catch {
+      setMessage("Trading engine unavailable.");
+    } finally {
+      setRunningTrade(false);
+    }
+  }
+
+  useEffect(() => {
+    loadHealth();
+    const interval = setInterval(loadHealth, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const online = health?.status === "healthy";
+
+  return (
+    <main className="min-h-screen bg-[#020617] text-white">
+      <div className="mx-auto max-w-7xl px-6 py-8">
+        <nav className="flex items-center justify-between">
+          <Link href="/" className="text-2xl font-black">
+            CryptoNinja <span className="text-cyan-300">AI</span>
+          </Link>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/account"
+              className="rounded-xl border border-white/10 px-5 py-3 text-sm font-bold hover:bg-white/10"
+            >
+              Account
+            </Link>
+
+            <button className="rounded-xl border border-red-400/30 bg-red-400/10 px-5 py-3 text-sm font-black text-red-300">
+              Emergency Stop
+            </button>
+          </div>
+        </nav>
+
+        <section className="mt-10">
+          <p className="text-sm font-bold tracking-[0.35em] text-cyan-300">
+            COMMAND CENTER
+          </p>
+
+          <div className="mt-4 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+            <div>
+              <h1 className="text-5xl font-black">CryptoNinja AI Dashboard</h1>
+              <p className="mt-3 text-slate-400">
+                Live trading engine status, paper balance, risk controls and bot activity.
+              </p>
+            </div>
+
+            <div
+              className={`rounded-full border px-5 py-3 text-sm font-black ${
+                online
+                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                  : "border-red-400/30 bg-red-400/10 text-red-300"
+              }`}
+            >
+              {online ? "● Engine Online" : "● Engine Offline"}
+            </div>
+          </div>
         </section>
 
-        <section className="mt-8 grid gap-6 lg:grid-cols-[0.7fr_0.3fr]">
-          <div className="glass rounded-3xl p-6">
-            <div className="flex items-center gap-3">
-              <Radio className="text-cyan-300" />
-              <h2 className="text-2xl font-black text-white">Live activity</h2>
+        <section className="mt-8 grid gap-4 md:grid-cols-4">
+          <Card label="Paper Balance" value={loading ? "Loading..." : `£${health?.cash_gbp?.toLocaleString() ?? 0}`} />
+          <Card label="Trades" value={String(health?.trades ?? 0)} />
+          <Card label="Mode" value={health?.paper_trading ? "Paper Trading" : "Live"} />
+          <Card label="Risk" value="Protected" />
+        </section>
+
+        <section className="mt-8 grid gap-6 lg:grid-cols-3">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 lg:col-span-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-black">Trading Engine</h2>
+
+              <button
+                onClick={runPaperTrade}
+                disabled={runningTrade || !online}
+                className="rounded-xl bg-cyan-300 px-5 py-3 font-black text-slate-950 disabled:opacity-50"
+              >
+                {runningTrade ? "Running..." : "Run Paper Trade"}
+              </button>
             </div>
+
+            {message && (
+              <p className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-slate-300">
+                {message}
+              </p>
+            )}
+
             <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
               <table className="w-full text-left text-sm">
-                <thead className="bg-white/[0.04] text-slate-300">
+                <thead className="bg-white/[0.04] text-slate-400">
                   <tr>
-                    <th className="p-4">Pair</th>
-                    <th className="p-4">Side</th>
-                    <th className="p-4">Size</th>
+                    <th className="p-4">System</th>
                     <th className="p-4">Status</th>
-                    <th className="p-4">P&L</th>
+                    <th className="p-4">Details</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {trades.map((trade) => (
-                    <tr key={`${trade.pair}-${trade.side}`} className="border-t border-white/10">
-                      <td className="p-4 font-bold text-white">{trade.pair}</td>
-                      <td className="p-4 text-slate-300">{trade.side}</td>
-                      <td className="p-4 text-slate-300">{trade.size}</td>
-                      <td className="p-4 text-cyan-200">{trade.status}</td>
-                      <td className="p-4 text-emerald-300">{trade.pnl}</td>
-                    </tr>
-                  ))}
+                  <Row name="Trading Engine" status={online ? "Online" : "Offline"} detail="FastAPI service" />
+                  <Row name="Paper Broker" status="Active" detail="Simulated execution only" />
+                  <Row name="Risk Engine" status="Protected" detail="Trade limits active" />
+                  <Row name="Coinbase" status="Coming Soon" detail="Market data next" />
                 </tbody>
               </table>
             </div>
           </div>
 
-          <aside className="space-y-6">
-            <div className="glass rounded-3xl p-6">
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="text-cyan-300" />
-                <h2 className="text-xl font-black text-white">Risk rules</h2>
-              </div>
-              <ul className="mt-5 space-y-3 text-sm text-slate-300">
-                <li>✓ Max trade size: 2%</li>
-                <li>✓ Max daily loss: 3%</li>
-                <li>✓ Cooldown after loss</li>
-                <li>✓ Live trading requires admin unlock</li>
-              </ul>
-            </div>
+          <div className="space-y-6">
+            <Panel title="AI Market Brief">
+              BTC is holding above support. ETH momentum is improving. Risk remains low.
+              Paper engine is waiting for confirmation.
+            </Panel>
 
-            <div className="glass rounded-3xl p-6">
-              <div className="flex items-center gap-3">
-                <Bot className="text-cyan-300" />
-                <h2 className="text-xl font-black text-white">AI summary</h2>
-              </div>
-              <p className="mt-4 text-sm leading-6 text-slate-300">
-                Market is mixed. Trend strength is moderate. Bot remains conservative until volatility settles.
-              </p>
-            </div>
+            <Panel title="Risk Rules">
+              Max trade size active. Daily loss limit active. Live trading remains locked.
+            </Panel>
 
-            <div className="rounded-3xl border border-amber-300/20 bg-amber-300/10 p-6">
-              <div className="flex items-center gap-3">
-                <Lock className="text-amber-200" />
-                <h2 className="text-xl font-black text-amber-100">Live mode locked</h2>
-              </div>
-              <p className="mt-4 text-sm text-amber-100/80">
-                Add real risk reviews, audit logs, and exchange key encryption before unlocking live trading.
-              </p>
-            </div>
-          </aside>
+            <Panel title="Next Build">
+              Connect Coinbase market data, then log paper trades into Supabase.
+            </Panel>
+          </div>
         </section>
       </div>
     </main>
+  );
+}
+
+function Card({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+      <p className="text-sm text-slate-400">{label}</p>
+      <p className="mt-2 text-2xl font-black">{value}</p>
+    </div>
+  );
+}
+
+function Row({ name, status, detail }: { name: string; status: string; detail: string }) {
+  return (
+    <tr className="border-t border-white/10">
+      <td className="p-4 font-bold">{name}</td>
+      <td className="p-4 text-cyan-300">{status}</td>
+      <td className="p-4 text-slate-400">{detail}</td>
+    </tr>
+  );
+}
+
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+      <h2 className="text-xl font-black">{title}</h2>
+      <p className="mt-3 text-sm leading-6 text-slate-400">{children}</p>
+    </div>
   );
 }
