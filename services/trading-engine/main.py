@@ -6,6 +6,7 @@ from risk_engine import RiskEngine
 from strategy import DemoStrategy
 from supabase_client import SupabaseLogger
 from market_data import get_btc_price
+from portfolio import get_portfolio_summary
 
 app = FastAPI(title=settings.app_name)
 
@@ -38,6 +39,11 @@ def health():
     }
 
 
+
+
+@app.get("/portfolio")
+def portfolio():
+    return get_portfolio_summary()
 
 @app.get("/market/btc")
 def market_btc():
@@ -78,4 +84,5 @@ async def run_paper_once():
         "trade": trade.__dict__,
         "cash_gbp": broker.cash_gbp,
     }
+
 
