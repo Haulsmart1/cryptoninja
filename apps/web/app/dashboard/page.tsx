@@ -13,6 +13,16 @@ type EngineHealth = {
   trades: number;
 };
 
+type PortfolioSummary = {
+  cash: number;
+  invested: number;
+  market_value: number;
+  portfolio_value: number;
+  unrealized_pnl: number;
+  return_percent: number;
+  btc_price: number;
+};
+
 type PaperTrade = {
   id: string;
   symbol: string;
@@ -28,6 +38,7 @@ type PaperTrade = {
 
 export default function DashboardPage() {
   const [health, setHealth] = useState<EngineHealth | null>(null);
+  const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [trades, setTrades] = useState<PaperTrade[]>([]);
   const [loading, setLoading] = useState(true);
   const [prices, setPrices] = useState<Record<string, number | null>>({});
@@ -76,8 +87,21 @@ export default function DashboardPage() {
     }
   }
 
+  async function loadPortfolio() {
+    try {
+      const response = await fetch("/api/portfolio", { cache: "no-store" });
+      const data = await response.json();
+
+      if (!data.error) {
+        setPortfolio(data);
+      }
+    } catch {
+      setPortfolio(null);
+    }
+  }
+
   async function refreshAll() {
-    await Promise.all([loadHealth(), loadTrades(), loadPrices()]);
+    await Promise.all([loadHealth(), loadTrades(), loadPrices(), loadPortfolio()]);
   }
 
   async function runPaperTrade() {
@@ -153,9 +177,11 @@ export default function DashboardPage() {
     return total + holding.quantity * livePrice;
   }, 0);
 
-  const estimatedPortfolioValue = latestCash + liveHoldingsValue;
-  const totalPnl = estimatedPortfolioValue - startingBalance;
-  const totalReturn = (totalPnl / startingBalance) * 100;
+  const estimatedPortfolioValue = portfolio?.portfolio_value ?? latestCash + liveHoldingsValue;
+  const totalPnl = portfolio?.unrealized_pnl ?? estimatedPortfolioValue - startingBalance;
+  const totalReturn = portfolio?.return_percent ?? (totalPnl / startingBalance) * 100;
+  const displayCash = portfolio?.cash ?? latestCash;
+  const displayInvested = portfolio?.invested ?? investedCapital;
 
   const online = health?.status === "healthy";
 
@@ -209,8 +235,8 @@ export default function DashboardPage() {
 
         <section className="mt-8 grid gap-4 md:grid-cols-4">
           <Card label="Portfolio Value" value={loading ? "Loading..." : `£${estimatedPortfolioValue.toLocaleString()}`} />
-          <Card label="Cash" value={`£${latestCash.toLocaleString()}`} />
-          <Card label="Invested" value={`£${investedCapital.toLocaleString()}`} />
+          <Card label="Cash" value={`£${displayCash.toLocaleString()}`} />
+          <Card label="Invested" value={`£${displayInvested.toLocaleString()}`} />
           <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}£${totalPnl.toFixed(2)}`} />
           <Card label="Return" value={`${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`} />
           <Card label="Open Positions" value={String(openPositions)} />
@@ -503,6 +529,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
 
 
