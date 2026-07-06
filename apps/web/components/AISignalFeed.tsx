@@ -1,51 +1,41 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
+import { createClient } from "../lib/supabase-browser";
 
 type Signal = {
-  id: number;
-  time: string;
+  id: string;
   symbol: string;
-  action: "BUY" | "SELL" | "HOLD";
+  action: string;
   confidence: number;
+  reason: string | null;
+  executed: boolean;
+  created_at: string;
 };
 
 export default function AISignalFeed() {
-  const [signals, setSignals] = useState<Signal[]>([
-    {
-      id: 1,
-      time: new Date().toLocaleTimeString(),
-      symbol: "BTC-GBP",
-      action: "BUY",
-      confidence: 82,
-    },
-    {
-      id: 2,
-      time: new Date().toLocaleTimeString(),
-      symbol: "ETH-GBP",
-      action: "HOLD",
-      confidence: 67,
-    },
-    {
-      id: 3,
-      time: new Date().toLocaleTimeString(),
-      symbol: "SOL-GBP",
-      action: "SELL",
-      confidence: 74,
-    },
-  ]);
+  const [signals, setSignals] = useState<Signal[]>([]);
+
+  async function loadSignals() {
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from("ai_signals")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (!error && data) {
+      setSignals(data as Signal[]);
+    }
+  }
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setSignals((current) =>
-        current.map((signal) => ({
-          ...signal,
-          time: new Date().toLocaleTimeString(),
-        }))
-      );
-    }, 10000);
+    loadSignals();
 
-    return () => clearInterval(interval);
+    const timer = setInterval(loadSignals, 5000);
+
+    return () => clearInterval(timer);
   }, []);
 
   return (
@@ -59,36 +49,56 @@ export default function AISignalFeed() {
       </div>
 
       <div className="mt-6 space-y-3">
-        {signals.map((signal) => (
-          <div
-            key={signal.id}
-            className="rounded-2xl border border-white/10 bg-black/20 p-4"
-          >
-            <div className="flex items-center justify-between">
-              <span className="font-bold">{signal.symbol}</span>
+        {signals.length === 0 ? (
+          <p className="text-slate-400">Waiting for AI signals...</p>
+        ) : (
+          signals.map((signal) => (
+            <div
+              key={signal.id}
+              className="rounded-2xl border border-white/10 bg-black/20 p-4"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold">{signal.symbol}</span>
 
-              <span
-                className={
-                  signal.action === "BUY"
-                    ? "text-emerald-300"
-                    : signal.action === "SELL"
-                    ? "text-red-300"
-                    : "text-amber-300"
-                }
-              >
-                {signal.action}
-              </span>
+                <span
+                  className={
+                    signal.action === "BUY"
+                      ? "text-emerald-300"
+                      : signal.action === "SELL"
+                      ? "text-red-300"
+                      : "text-amber-300"
+                  }
+                >
+                  {signal.action}
+                </span>
+              </div>
+
+              <p className="mt-2 text-sm text-slate-300">
+                Confidence: <strong>{signal.confidence}%</strong>
+              </p>
+
+              <p className="mt-1 text-sm text-slate-400">
+                {signal.reason}
+              </p>
+
+              <div className="mt-3 flex items-center justify-between">
+                <span
+                  className={
+                    signal.executed
+                      ? "text-emerald-300"
+                      : "text-red-300"
+                  }
+                >
+                  {signal.executed ? "Executed" : "Blocked"}
+                </span>
+
+                <span className="text-xs text-slate-500">
+                  {new Date(signal.created_at).toLocaleString()}
+                </span>
+              </div>
             </div>
-
-            <p className="mt-2 text-sm text-slate-400">
-              Confidence: {signal.confidence}%
-            </p>
-
-            <p className="mt-1 text-xs text-slate-500">
-              {signal.time}
-            </p>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </section>
   );
