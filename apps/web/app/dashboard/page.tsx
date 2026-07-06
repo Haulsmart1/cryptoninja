@@ -264,6 +264,40 @@ export default function DashboardPage() {
           </div>
         </section>
 
+        <section className="mt-8 grid gap-6 lg:grid-cols-2">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+            <h2 className="text-2xl font-black">Portfolio Allocation</h2>
+
+            <div className="mt-6 space-y-4">
+              <AllocationRow label="Cash" value={latestCash} total={estimatedPortfolioValue} />
+              {holdingRows.map((holding) => {
+                const livePrice = Number(prices[holding.symbol] ?? holding.cost / holding.quantity);
+                const value = holding.quantity * livePrice;
+
+                return (
+                  <AllocationRow
+                    key={holding.symbol}
+                    label={holding.symbol}
+                    value={value}
+                    total={estimatedPortfolioValue}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
+            <h2 className="text-2xl font-black">Performance</h2>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <Card label="Starting Balance" value="£10,000" />
+              <Card label="Current Value" value={`£${estimatedPortfolioValue.toLocaleString()}`} />
+              <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}£${totalPnl.toFixed(2)}`} />
+              <Card label="Return" value={`${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`} />
+            </div>
+          </div>
+        </section>
+
         <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-6">
           <h2 className="text-2xl font-black">Open Positions</h2>
 
@@ -379,6 +413,35 @@ function Row({ name, status, detail }: { name: string; status: string; detail: s
   );
 }
 
+function AllocationRow({
+  label,
+  value,
+  total,
+}: {
+  label: string;
+  value: number;
+  total: number;
+}) {
+  const percentage = total > 0 ? (value / total) * 100 : 0;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="font-bold text-white">{label}</span>
+        <span className="text-slate-400">
+          £{value.toFixed(2)} · {percentage.toFixed(1)}%
+        </span>
+      </div>
+      <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/10">
+        <div
+          className="h-full rounded-full bg-cyan-300"
+          style={{ width: `${Math.min(percentage, 100)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
@@ -387,6 +450,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
 
 
