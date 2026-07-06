@@ -16,26 +16,44 @@ type Signal = {
 export default function AISignalFeed() {
   const [signals, setSignals] = useState<Signal[]>([]);
 
-  async function loadSignals() {
+  useEffect(() => {
     const supabase = createClient();
 
-    const { data, error } = await supabase
-      .from("ai_signals")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(10);
+    async function loadSignals() {
+      const { data } = await supabase
+        .from("ai_signals")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
 
-    if (!error && data) {
-      setSignals(data as Signal[]);
+      if (data) {
+        setSignals(data as Signal[]);
+      }
     }
-  }
 
-  useEffect(() => {
     loadSignals();
 
-    const timer = setInterval(loadSignals, 5000);
+    const channel = supabase
+      .channel("ai-signals")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "ai_signals",
+        },
+        (payload) => {
+          setSignals((current) => [
+            payload.new as Signal,
+            ...current,
+          ].slice(0, 10));
+        }
+      )
+      .subscribe();
 
-    return () => clearInterval(timer);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   return (
@@ -43,8 +61,8 @@ export default function AISignalFeed() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-black">AI Signal Feed</h2>
 
-        <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-bold text-cyan-300">
-          LIVE
+        <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-300">
+          ● LIVE
         </span>
       </div>
 
@@ -74,7 +92,7 @@ export default function AISignalFeed() {
               </div>
 
               <p className="mt-2 text-sm text-slate-300">
-                Confidence: <strong>{signal.confidence}%</strong>
+                Confidence: {signal.confidence}%
               </p>
 
               <p className="mt-1 text-sm text-slate-400">
@@ -82,18 +100,12 @@ export default function AISignalFeed() {
               </p>
 
               <div className="mt-3 flex items-center justify-between">
-                <span
-                  className={
-                    signal.executed
-                      ? "text-emerald-300"
-                      : "text-red-300"
-                  }
-                >
+                <span className={signal.executed ? "text-emerald-300" : "text-red-300"}>
                   {signal.executed ? "Executed" : "Blocked"}
                 </span>
 
                 <span className="text-xs text-slate-500">
-                  {new Date(signal.created_at).toLocaleString()}
+                  {new Date(signal.created_at).toLocaleTimeString()}
                 </span>
               </div>
             </div>
