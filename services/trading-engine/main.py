@@ -5,6 +5,7 @@ from paper_broker import PaperBroker
 from risk_engine import RiskEngine
 from strategy import DemoStrategy
 from supabase_client import SupabaseLogger
+from market_data import get_btc_price
 
 app = FastAPI(title=settings.app_name)
 
@@ -37,6 +38,13 @@ def health():
     }
 
 
+
+@app.get("/market/btc")
+def market_btc():
+    return {
+        "symbol": "BTC-GBP",
+        "price": get_btc_price(),
+    }
 @app.post("/paper/run-once")
 async def run_paper_once():
     signal = strategy.evaluate()
@@ -70,3 +78,4 @@ async def run_paper_once():
         "trade": trade.__dict__,
         "cash_gbp": broker.cash_gbp,
     }
+
