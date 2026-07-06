@@ -4,6 +4,7 @@ from config import settings
 from paper_broker import PaperBroker
 from risk_engine import RiskEngine
 from strategy import DemoStrategy
+from supabase_client import SupabaseLogger
 
 app = FastAPI(title=settings.app_name)
 
@@ -13,6 +14,7 @@ risk_engine = RiskEngine(
     max_daily_loss_gbp=settings.max_daily_loss_gbp,
 )
 strategy = DemoStrategy()
+logger = SupabaseLogger(settings.supabase_url, settings.supabase_service_key)
 
 
 @app.get("/")
@@ -36,7 +38,7 @@ def health():
 
 
 @app.post("/paper/run-once")
-def run_paper_once():
+async def run_paper_once():
     signal = strategy.evaluate()
     trade_value = signal.quantity * signal.price
     decision = risk_engine.check_trade(trade_value)
@@ -54,6 +56,8 @@ def run_paper_once():
         price=signal.price,
         reason=signal.reason,
     )
+
+    await logger.log_paper_trade(trade.__dict__, broker.cash_gbp)
 
     return {
         "executed": True,
