@@ -6,9 +6,16 @@ class SupabaseLogger:
         self.supabase_url = supabase_url.rstrip("/")
         self.service_key = service_key
 
+    def _headers(self) -> dict:
+        return {
+            "apikey": self.service_key,
+            "Authorization": f"Bearer {self.service_key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation",
+        }
+
     async def log_ai_signal(self, signal: dict, executed: bool) -> None:
         if not self.supabase_url or not self.service_key:
-            print("Supabase AI signal logging disabled.")
             return
 
         payload = {
@@ -19,26 +26,16 @@ class SupabaseLogger:
             "executed": executed,
         }
 
-        headers = {
-            "apikey": self.service_key,
-            "Authorization": f"Bearer {self.service_key}",
-            "Content-Type": "application/json",
-            "Prefer": "return=representation",
-        }
-
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(
                 f"{self.supabase_url}/rest/v1/ai_signals",
-                headers=headers,
+                headers=self._headers(),
                 json=payload,
             )
-
             print("AI Signal Status:", response.status_code)
-            print("AI Signal Response:", response.text)
 
     async def log_paper_trade(self, trade: dict, cash_gbp: float) -> None:
         if not self.supabase_url or not self.service_key:
-            print("Supabase trade logging disabled.")
             return
 
         payload = {
@@ -53,19 +50,32 @@ class SupabaseLogger:
             "cash_gbp": cash_gbp,
         }
 
-        headers = {
-            "apikey": self.service_key,
-            "Authorization": f"Bearer {self.service_key}",
-            "Content-Type": "application/json",
-            "Prefer": "return=representation",
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(
+                f"{self.supabase_url}/rest/v1/paper_trade_logs",
+                headers=self._headers(),
+                json=payload,
+            )
+            print("Trade Status:", response.status_code)
+
+    async def log_portfolio_snapshot(self, snapshot: dict) -> None:
+        if not self.supabase_url or not self.service_key:
+            return
+
+        payload = {
+            "portfolio_value": snapshot["portfolio_value"],
+            "cash": snapshot["cash"],
+            "invested": snapshot["invested"],
+            "unrealized_pnl": snapshot["unrealized_pnl"],
+            "btc_price": snapshot["btc_price"],
         }
 
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(
-                f"{self.supabase_url}/rest/v1/paper_trade_logs",
-                headers=headers,
+                f"{self.supabase_url}/rest/v1/portfolio_history",
+                headers=self._headers(),
                 json=payload,
             )
+            print("Portfolio Snapshot Status:", response.status_code)
+            print("Portfolio Snapshot Response:", response.text)
 
-            print("Trade Status:", response.status_code)
-            print("Trade Response:", response.text)

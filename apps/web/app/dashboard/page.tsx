@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import AICommandCenter from "../../components/AICommandCenter";
 import AISignalFeed from "../../components/AISignalFeed";
+import PortfolioChart from "../../components/PortfolioChart";
 import EquityCurve from "../../components/EquityCurve";
 import { createClient } from "../../lib/supabase-browser";
 
@@ -232,6 +233,10 @@ export default function DashboardPage() {
 
         <div className="mt-8">
           <AISignalFeed />
+
+        <div className="mt-8">
+          <PortfolioChart />
+        </div>
         </div>
 
         <section className="mt-8 grid gap-4 md:grid-cols-4">
@@ -534,6 +539,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
 
 

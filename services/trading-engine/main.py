@@ -78,11 +78,15 @@ async def run_paper_once():
     await logger.log_ai_signal(signal_dict, executed=True)
     await logger.log_paper_trade(trade.__dict__, broker.cash_gbp)
 
+    snapshot = get_portfolio_summary()
+    await logger.log_portfolio_snapshot(snapshot)
+
     return {
         "executed": True,
         "signal": signal_dict,
         "trade": trade.__dict__,
         "cash_gbp": broker.cash_gbp,
     }
+
 
 
