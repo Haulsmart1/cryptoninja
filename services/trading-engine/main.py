@@ -1,12 +1,13 @@
 ﻿from fastapi import FastAPI
 
+from analysis import analyze_market
 from config import settings
+from market_data import get_btc_price
 from paper_broker import PaperBroker
+from portfolio import get_portfolio_summary
 from risk_engine import RiskEngine
 from strategy import DemoStrategy
 from supabase_client import SupabaseLogger
-from market_data import get_btc_price
-from portfolio import get_portfolio_summary
 
 app = FastAPI(title=settings.app_name)
 
@@ -39,11 +40,10 @@ def health():
     }
 
 
-
-
 @app.get("/portfolio")
 def portfolio():
     return get_portfolio_summary()
+
 
 @app.get("/market/btc")
 def market_btc():
@@ -51,6 +51,13 @@ def market_btc():
         "symbol": "BTC-GBP",
         "price": get_btc_price(),
     }
+
+
+@app.get("/analysis/{symbol}")
+def analysis(symbol: str):
+    return analyze_market(symbol.upper())
+
+
 @app.post("/paper/run-once")
 async def run_paper_once():
     signal = strategy.evaluate()
@@ -87,6 +94,3 @@ async def run_paper_once():
         "trade": trade.__dict__,
         "cash_gbp": broker.cash_gbp,
     }
-
-
-
