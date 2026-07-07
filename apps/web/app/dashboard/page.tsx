@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import AICommandCenter from "../../components/AICommandCenter";
+import MarketIntelligence from "../../components/MarketIntelligence";
 import AIReasoningPanel from "../../components/AIReasoningPanel";
 import AISignalFeed from "../../components/AISignalFeed";
 import PortfolioChart from "../../components/PortfolioChart";
@@ -230,7 +231,11 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <AICommandCenter />
+        <MarketIntelligence />
+
+        <div className="mt-8">
+          <AICommandCenter />
+        </div>
 
         <div className="mt-8">
           <AIReasoningPanel />
@@ -562,6 +567,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
 
 
