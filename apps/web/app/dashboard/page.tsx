@@ -94,7 +94,7 @@ export default function DashboardPage() {
 
   async function loadPortfolio() {
     try {
-      const response = await fetch("/api/portfolio", { cache: "no-store" });
+      const response = await fetch("/api/portfolio-live", { cache: "no-store" });
       const data = await response.json();
 
       if (!data.error) {
@@ -572,6 +572,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
 
 
