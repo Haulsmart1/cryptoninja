@@ -357,6 +357,7 @@ export default function DashboardPage() {
                   <th className="p-4">Live Price</th>
                   <th className="p-4">Value</th>
                   <th className="p-4">P&L</th>
+                  <th className="p-4">Return</th>
                   <th className="p-4">Status</th>
                 </tr>
               </thead>
@@ -382,8 +383,25 @@ export default function DashboardPage() {
                       <td className="p-4">
                         £{(holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity)).toFixed(2)}
                       </td>
-                      <td className="p-4 text-emerald-300">
+                      <td
+                        className={`p-4 ${
+                          holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity) - holding.cost >= 0
+                            ? "text-emerald-300"
+                            : "text-red-300"
+                        }`}
+                      >
+                        {holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity) - holding.cost >= 0 ? "+" : ""}
                         £{((holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity)) - holding.cost).toFixed(2)}
+                      </td>
+                      <td
+                        className={`p-4 ${
+                          ((holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity) - holding.cost) / holding.cost) * 100 >= 0
+                            ? "text-emerald-300"
+                            : "text-red-300"
+                        }`}
+                      >
+                        {(((holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity) - holding.cost) / holding.cost) * 100) >= 0 ? "+" : ""}
+                        {(((holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity) - holding.cost) / holding.cost) * 100).toFixed(2)}%
                       </td>
                       <td className="p-4 text-emerald-300">Open</td>
                     </tr>
@@ -539,6 +557,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
 
 
