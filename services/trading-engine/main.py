@@ -1,6 +1,7 @@
 ﻿from fastapi import FastAPI
 
 from analysis import analyze_market
+from auto_trader import auto_trader
 from config import settings
 from market_data import get_btc_price
 from paper_broker import PaperBroker
@@ -58,6 +59,21 @@ def analysis(symbol: str):
     return analyze_market(symbol.upper())
 
 
+@app.post("/autotrader/start")
+async def start_auto_trader():
+    return await auto_trader.start(run_paper_once)
+
+
+@app.post("/autotrader/stop")
+async def stop_auto_trader():
+    return await auto_trader.stop()
+
+
+@app.get("/autotrader/status")
+def auto_trader_status():
+    return auto_trader.status()
+
+
 @app.post("/paper/run-once")
 async def run_paper_once():
     signal = strategy.evaluate()
@@ -94,3 +110,4 @@ async def run_paper_once():
         "trade": trade.__dict__,
         "cash_gbp": broker.cash_gbp,
     }
+
