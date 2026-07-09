@@ -5,6 +5,7 @@ import Link from "next/link";
 import AICommandCenter from "../../components/AICommandCenter";
 import MarketIntelligence from "../../components/MarketIntelligence";
 import AIWatchlist from "../../components/AIWatchlist";
+import AutoTraderPanel from "../../components/AutoTraderPanel";
 import AIReasoningPanel from "../../components/AIReasoningPanel";
 import AISignalFeed from "../../components/AISignalFeed";
 import PortfolioChart from "../../components/PortfolioChart";
@@ -243,6 +244,10 @@ export default function DashboardPage() {
 
         <div className="mt-8">
           <AIWatchlist />
+
+        <div className="mt-8">
+          <AutoTraderPanel />
+        </div>
         </div>
         </div>
 
@@ -572,6 +577,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
 
 
