@@ -1,6 +1,7 @@
 ﻿from fastapi import FastAPI
 
 from analysis import analyze_market
+from decision_engine import make_decision
 from auto_trader import auto_trader
 from config import settings
 from market_data import get_btc_price
@@ -53,6 +54,11 @@ def market_btc():
         "price": get_btc_price(),
     }
 
+
+
+@app.get("/decision/{symbol}")
+def decision(symbol: str):
+    return make_decision(symbol.upper())
 
 @app.get("/analysis/{symbol}")
 def analysis(symbol: str):
@@ -120,5 +126,7 @@ async def run_paper_once():
         "trade": trade.__dict__,
         "cash_gbp": broker.cash_gbp,
     }
+
+
 
 
