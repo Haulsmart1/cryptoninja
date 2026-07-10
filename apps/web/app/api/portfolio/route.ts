@@ -1,19 +1,41 @@
-﻿import { NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 
-const ENGINE_URL = process.env.TRADING_ENGINE_URL ?? "http://127.0.0.1:8000";
+const engineUrl = process.env.TRADING_ENGINE_URL;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!engineUrl) {
+    return NextResponse.json(
+      { error: "Trading engine is not configured." },
+      { status: 503 }
+    );
+  }
+
+  const authorization = request.headers.get("authorization");
+
+  if (!authorization) {
+    return NextResponse.json(
+      { error: "Authorization is required." },
+      { status: 401 }
+    );
+  }
+
   try {
-    const response = await fetch(`${ENGINE_URL}/portfolio`, {
+    const response = await fetch(`${engineUrl}/portfolio`, {
       cache: "no-store",
+      headers: {
+        Authorization: authorization,
+      },
     });
 
-    if (!response.ok) {
-      return NextResponse.json({ error: "Portfolio unavailable" }, { status: 503 });
-    }
+    const data = await response.json();
 
-    return NextResponse.json(await response.json());
+    return NextResponse.json(data, {
+      status: response.status,
+    });
   } catch {
-    return NextResponse.json({ error: "Unable to connect to engine" }, { status: 503 });
+    return NextResponse.json(
+      { error: "Unable to connect to trading engine." },
+      { status: 503 }
+    );
   }
 }

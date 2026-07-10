@@ -11,6 +11,7 @@ import AISignalFeed from "../../components/AISignalFeed";
 import PortfolioChart from "../../components/PortfolioChart";
 import EquityCurve from "../../components/EquityCurve";
 import { createClient } from "../../lib/supabase-browser";
+import { authFetch } from "../../lib/auth-fetch";
 
 type EngineHealth = {
   status: string;
@@ -95,7 +96,7 @@ export default function DashboardPage() {
 
   async function loadPortfolio() {
     try {
-      const response = await fetch("/api/portfolio-live", { cache: "no-store" });
+      const response = await authFetch("/api/portfolio", { cache: "no-store" });
       const data = await response.json();
 
       if (!data.error) {
@@ -115,7 +116,7 @@ export default function DashboardPage() {
     setMessage("");
 
     try {
-      const response = await fetch("/api/trading/run-paper", {
+      const response = await authFetch("/api/trading/run-paper", {
         method: "POST",
       });
 
@@ -577,6 +578,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
+
 
 
 

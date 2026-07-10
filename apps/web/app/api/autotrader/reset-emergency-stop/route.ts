@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const response = await fetch(
-      `${engineUrl}/autotrader/stop`,
+      `${engineUrl}/autotrader/reset-emergency-stop`,
       {
         method: "POST",
         cache: "no-store",

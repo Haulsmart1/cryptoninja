@@ -115,7 +115,9 @@ class AutoTrader:
                 else:
                     self.last_result = {
                         "executed": False,
-                        "reason": "Decision did not meet execution rules.",
+                        "reason": (
+                            "Decision did not meet execution rules."
+                        ),
                     }
 
                 await asyncio.sleep(self.interval_seconds)
@@ -148,4 +150,18 @@ class AutoTrader:
         }
 
 
-auto_trader = AutoTrader()
+class AutoTraderRegistry:
+    def __init__(self) -> None:
+        self._traders: dict[str, AutoTrader] = {}
+
+    def get(self, user_id: str) -> AutoTrader:
+        if not user_id:
+            raise ValueError("user_id is required.")
+
+        if user_id not in self._traders:
+            self._traders[user_id] = AutoTrader()
+
+        return self._traders[user_id]
+
+
+auto_traders = AutoTraderRegistry()
