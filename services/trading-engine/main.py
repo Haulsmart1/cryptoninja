@@ -69,6 +69,16 @@ async def stop_auto_trader():
     return await auto_trader.stop()
 
 
+
+@app.post("/autotrader/emergency-stop")
+def emergency_stop_auto_trader():
+    return auto_trader.trigger_emergency_stop()
+
+
+@app.post("/autotrader/reset-emergency-stop")
+def reset_emergency_stop():
+    return auto_trader.reset_emergency_stop()
+
 @app.get("/autotrader/status")
 def auto_trader_status():
     return auto_trader.status()
@@ -110,4 +120,5 @@ async def run_paper_once():
         "trade": trade.__dict__,
         "cash_gbp": broker.cash_gbp,
     }
+
 
