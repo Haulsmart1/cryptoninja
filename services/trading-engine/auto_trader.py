@@ -5,7 +5,7 @@ from typing import Awaitable, Callable, Optional
 from decision_engine import make_decision
 
 
-RunOnceCallback = Callable[[], Awaitable[dict]]
+DecisionCallback = Callable[[dict], Awaitable[dict]]
 
 
 class AutoTrader:
@@ -16,12 +16,13 @@ class AutoTrader:
         self.max_risk_score = 50
         self.task: Optional[asyncio.Task] = None
         self.last_decision: Optional[dict] = None
+        self.last_result: Optional[dict] = None
         self.last_run_at: Optional[str] = None
         self.last_error: Optional[str] = None
         self.trades_today = 0
         self.emergency_stop = False
 
-    async def start(self, run_once_callback: RunOnceCallback) -> dict:
+    async def start(self, execute_callback: DecisionCallback) -> dict:
         if self.emergency_stop:
             return {
                 "enabled": False,
@@ -37,7 +38,7 @@ class AutoTrader:
         self.enabled = True
         self.last_error = None
         self.task = asyncio.create_task(
-            self._loop(run_once_callback)
+            self._loop(execute_callback)
         )
 
         return {
@@ -81,7 +82,7 @@ class AutoTrader:
 
     async def _loop(
         self,
-        run_once_callback: RunOnceCallback,
+        execute_callback: DecisionCallback,
     ) -> None:
         while self.enabled and not self.emergency_stop:
             try:
@@ -106,10 +107,16 @@ class AutoTrader:
                 )
 
                 if should_execute:
-                    result = await run_once_callback()
+                    result = await execute_callback(decision)
+                    self.last_result = result
 
                     if result.get("executed"):
                         self.trades_today += 1
+                else:
+                    self.last_result = {
+                        "executed": False,
+                        "reason": "Decision did not meet execution rules.",
+                    }
 
                 await asyncio.sleep(self.interval_seconds)
 
@@ -118,12 +125,9 @@ class AutoTrader:
 
             except Exception as error:
                 self.last_error = str(error)
-                self.last_decision = {
-                    "symbol": "BTC-GBP",
-                    "action": "HOLD",
-                    "confidence": 0,
-                    "risk_score": 100,
-                    "reason": "Decision cycle failed.",
+                self.last_result = {
+                    "executed": False,
+                    "reason": "Auto-trader cycle failed.",
                     "error": str(error),
                 }
 
@@ -138,6 +142,7 @@ class AutoTrader:
             "max_risk_score": self.max_risk_score,
             "last_run_at": self.last_run_at,
             "last_decision": self.last_decision,
+            "last_result": self.last_result,
             "last_error": self.last_error,
             "trades_today": self.trades_today,
         }
