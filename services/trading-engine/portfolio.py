@@ -1,25 +1,35 @@
-﻿from market_data import get_btc_price
+﻿from config import settings
+from market_data import get_btc_price
+from portfolio_service import (
+    PortfolioService,
+    SupabaseTradeLoader,
+)
 
 
-def get_portfolio_summary():
-    price = get_btc_price()
+def _price_provider(symbol: str) -> float:
+    normalized_symbol = symbol.upper()
 
-    quantity = 0.001
-    avg_entry = 50000.0
-    starting_balance = 10000.0
-    cash = 9950.0
+    if normalized_symbol == "BTC-GBP":
+        return get_btc_price()
 
-    invested = quantity * avg_entry
-    market_value = quantity * price
-    unrealized = market_value - invested
-    portfolio_value = cash + market_value
+    raise ValueError(
+        f"No live price provider configured for {symbol}."
+    )
 
-    return {
-        "cash": round(cash, 2),
-        "invested": round(invested, 2),
-        "market_value": round(market_value, 2),
-        "portfolio_value": round(portfolio_value, 2),
-        "unrealized_pnl": round(unrealized, 2),
-        "return_percent": round(((portfolio_value - starting_balance) / starting_balance) * 100, 4),
-        "btc_price": round(price, 2),
-    }
+
+_trade_loader = SupabaseTradeLoader(
+    settings.supabase_url,
+    settings.supabase_service_key,
+)
+
+_portfolio_service = PortfolioService(
+    starting_balance_gbp=(
+        settings.starting_balance_gbp
+    ),
+    trade_loader=_trade_loader,
+    price_provider=_price_provider,
+)
+
+
+def get_portfolio_summary() -> dict:
+    return _portfolio_service.get_summary()
