@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
+import { authFetch } from "../lib/auth-fetch";
 
 type AutoTraderStatus = {
   enabled: boolean;
@@ -23,7 +24,7 @@ export default function AutoTraderPanel() {
   const [loading, setLoading] = useState(false);
 
   async function loadStatus() {
-    const response = await fetch("/api/autotrader/status", { cache: "no-store" });
+    const response = await authFetch("/api/autotrader/status", { cache: "no-store" });
     setStatus(await response.json());
   }
 
@@ -94,3 +95,6 @@ function Card({ title, value }: { title: string; value: string }) {
     </div>
   );
 }
+
+
+
