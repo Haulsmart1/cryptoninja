@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 
@@ -50,7 +50,7 @@ export default function AIReasoningPanel() {
   return (
     <div className="rounded-3xl border border-cyan-400/20 bg-cyan-500/5 p-6">
       <h2 className="text-2xl font-black text-cyan-300">
-        🧠 AI Market Analysis
+        ?? AI Market Analysis
       </h2>
 
       <div className="mt-6 space-y-4">
@@ -59,7 +59,14 @@ export default function AIReasoningPanel() {
         <Metric title="Confidence" value={`${analysis.confidence}%`} />
         <Metric title="Trend" value={analysis.trend} />
         <Metric title="Momentum" value={analysis.momentum} />
-        <Metric title="RSI" value={analysis.rsi.toString()} />
+        <Metric
+          title="RSI"
+          value={
+            typeof analysis.rsi === "number"
+              ? analysis.rsi.toFixed(1)
+              : "�"
+          }
+        />
 
         <div className="rounded-xl bg-black/20 p-4">
           <p className="text-xs text-slate-400">Reason</p>
@@ -85,3 +92,4 @@ function Metric({
     </div>
   );
 }
+
