@@ -25,28 +25,34 @@ export async function GET(request: Request) {
 
   const cookieStore = cookies();
 
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return NextResponse.redirect(
+      new URL(
+        "/login?error=missing_supabase_configuration",
+        requestUrl.origin
+      )
+    );
+  }
+
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+        getAll() {
+          return cookieStore.getAll();
         },
-        set(name: string, value: string, options) {
-          cookieStore.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options) {
-          cookieStore.set({
-            name,
-            value: "",
-            ...options,
-            maxAge: 0,
-          });
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(
+            ({ name, value, options }) => {
+              cookieStore.set(name, value, options);
+            }
+          );
         },
       },
     }

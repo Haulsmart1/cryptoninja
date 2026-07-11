@@ -11,15 +11,26 @@ export async function authFetch(
     error,
   } = await supabase.auth.getSession();
 
-  if (error || !session?.access_token) {
-    throw new Error("You must be signed in.");
+  if (error) {
+    throw new Error(
+      `Unable to read authentication session: ${error.message}`
+    );
+  }
+
+  if (!session?.access_token) {
+    throw new Error(
+      "Your session has expired. Please sign in again."
+    );
   }
 
   const headers = new Headers(init.headers);
+
   headers.set(
     "Authorization",
     `Bearer ${session.access_token}`
   );
+
+  headers.set("Accept", "application/json");
 
   return fetch(input, {
     ...init,
