@@ -3,38 +3,55 @@
 import { useState } from "react";
 import { createClient } from "../../lib/supabase-browser";
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://crypto-ninja.app";
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function signIn() {
-    setLoading(true);
-    setMessage("");
+    const normalizedEmail = email.trim().toLowerCase();
 
-    const supabase = createClient();
-
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-
-    setLoading(false);
-
-    if (error) {
-      setMessage(error.message);
+    if (!normalizedEmail) {
+      setMessage("Enter your email address.");
       return;
     }
 
-    setMessage("Magic link sent. Check your email.");
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const supabase = createClient();
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: normalizedEmail,
+        options: {
+          emailRedirectTo: `${siteUrl}/auth/callback?next=/dashboard`,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setMessage("Magic link sent. Check your email.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to send the magic link."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <main className="min-h-screen bg-[#020617] text-white flex items-center justify-center px-6">
+    <main className="flex min-h-screen items-center justify-center bg-[#020617] px-6 text-white">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl">
-        <p className="text-cyan-300 tracking-[0.35em] text-xs font-bold">
+        <p className="text-xs font-bold tracking-[0.35em] text-cyan-300">
           CRYPTONINJA AI
         </p>
 
@@ -47,14 +64,21 @@ export default function LoginPage() {
         <input
           className="mt-8 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-cyan-300"
           type="email"
+          autoComplete="email"
           placeholder="you@example.com"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              void signIn();
+            }
+          }}
         />
 
         <button
-          onClick={signIn}
-          disabled={loading || !email}
+          type="button"
+          onClick={() => void signIn()}
+          disabled={loading || !email.trim()}
           className="mt-4 w-full rounded-xl bg-cyan-300 px-4 py-3 font-black text-slate-950 disabled:opacity-50"
         >
           {loading ? "Sending..." : "Send magic link"}
@@ -65,7 +89,16 @@ export default function LoginPage() {
             {message}
           </p>
         )}
-      <p className="mt-6 text-center text-sm text-slate-400"><a href="/forgot-password" className="font-bold text-cyan-300">Forgot password?</a></p></div></main>
+
+        <p className="mt-6 text-center text-sm text-slate-400">
+          <a
+            href="/forgot-password"
+            className="font-bold text-cyan-300"
+          >
+            Forgot password?
+          </a>
+        </p>
+      </div>
+    </main>
   );
 }
-
