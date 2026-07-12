@@ -1,4 +1,4 @@
-﻿from typing import Annotated
+from typing import Annotated
 
 import httpx
 from fastapi import Header, HTTPException, status
@@ -54,9 +54,12 @@ async def require_user_id(
         ) from error
 
     if response.status_code != 200:
+        print("Supabase auth status:", response.status_code)
+        print("Supabase auth body:", response.text)
+
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired access token.",
+            detail=f"Supabase auth failed ({response.status_code})",
         )
 
     user = response.json()
