@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -112,25 +112,56 @@ export default function DashboardPage() {
   }
 
   async function runPaperTrade() {
+    console.log("runPaperTrade clicked");
+
     setRunningTrade(true);
-    setMessage("");
+    setMessage("Authenticating paper-trade request...");
 
     try {
-      const response = await authFetch("/api/trading/run-paper", {
-        method: "POST",
+      const response = await authFetch(
+        "/api/trading/run-paper",
+        {
+          method: "POST",
+          cache: "no-store",
+        }
+      );
+
+      const data = await response.json().catch(() => ({
+        error: "Invalid response from trading engine.",
+      }));
+
+      console.log("run-paper response:", {
+        status: response.status,
+        data,
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          data.detail ??
+            data.error ??
+            `Paper trade failed with status ${response.status}.`
+        );
+      }
 
       if (!data.executed) {
-        setMessage(data.reason || "Trade blocked.");
+        setMessage(
+          data.reason ??
+            data.decision?.reason ??
+            "No trade executed. The signal did not qualify."
+        );
       } else {
         setMessage("Paper trade executed successfully.");
       }
 
       await refreshAll();
-    } catch {
-      setMessage("Trading engine unavailable.");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unknown paper-trade error.";
+
+      console.error("runPaperTrade failed:", error);
+      setMessage(`Paper trade failed: ${message}`);
     } finally {
       setRunningTrade(false);
     }
