@@ -1,4 +1,4 @@
-﻿import { createClient } from "./supabase-browser";
+import { createClient } from "./supabase-browser";
 
 export async function authFetch(
   input: RequestInfo | URL,
@@ -10,6 +10,9 @@ export async function authFetch(
     data: { session },
     error,
   } = await supabase.auth.getSession();
+
+  console.log("Supabase session:", session);
+  console.log("Session error:", error);
 
   if (error) {
     throw new Error(
