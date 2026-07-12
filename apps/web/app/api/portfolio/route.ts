@@ -1,8 +1,9 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 
 const engineUrl = process.env.TRADING_ENGINE_URL;
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   if (!engineUrl) {
     return NextResponse.json(
       { error: "Trading engine is not configured." },
@@ -10,11 +11,15 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const authorization = request.headers.get("authorization");
+  const supabase = createSupabaseServerClient();
 
-  if (!authorization) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
     return NextResponse.json(
-      { error: "Authorization is required." },
+      { error: "Not authenticated." },
       { status: 401 }
     );
   }
@@ -23,7 +28,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`${engineUrl}/portfolio`, {
       cache: "no-store",
       headers: {
-        Authorization: authorization,
+        Authorization: `Bearer ${session.access_token}`,
       },
     });
 
