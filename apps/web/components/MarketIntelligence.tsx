@@ -1,4 +1,6 @@
-﻿"use client";
+"use client";
+
+import { authFetch } from "../lib/auth-fetch";
 
 import { useEffect, useState } from "react";
 
@@ -27,7 +29,10 @@ export default function MarketIntelligence() {
 
   async function safeJson(url: string) {
     try {
-      const response = await fetch(url, { cache: "no-store" });
+      const response =
+        url === "/api/portfolio"
+          ? await authFetch(url, { cache: "no-store" })
+          : await fetch(url, { cache: "no-store" });
       if (!response.ok) return {};
       return await response.json();
     } catch {
