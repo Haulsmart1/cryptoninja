@@ -1,4 +1,4 @@
-﻿from collections.abc import Callable
+from collections.abc import Callable
 
 from fastapi import Depends, FastAPI
 
@@ -214,6 +214,13 @@ async def execute_paper_decision(
 async def run_paper_once(
     user_id: str = Depends(require_user_id),
 ):
+    portfolio_before = get_portfolio_summary(user_id)
+
+    await logger.log_portfolio_snapshot(
+        user_id,
+        portfolio_before,
+    )
+
     decision_data = make_decision("BTC-GBP")
 
     return await execute_paper_decision(
