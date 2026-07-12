@@ -1,4 +1,4 @@
-﻿import httpx
+import httpx
 
 
 class SupabaseLogger:
@@ -58,11 +58,19 @@ class SupabaseLogger:
             )
             print("Trade Status:", response.status_code)
 
-    async def log_portfolio_snapshot(self, snapshot: dict) -> None:
+    async def log_portfolio_snapshot(
+        self,
+        user_id: str,
+        snapshot: dict,
+    ) -> None:
         if not self.supabase_url or not self.service_key:
             return
 
+        if not user_id:
+            raise ValueError("user_id is required.")
+
         payload = {
+            "user_id": user_id,
             "portfolio_value": snapshot["portfolio_value"],
             "cash": snapshot["cash"],
             "invested": snapshot["invested"],
@@ -76,6 +84,17 @@ class SupabaseLogger:
                 headers=self._headers(),
                 json=payload,
             )
-            print("Portfolio Snapshot Status:", response.status_code)
-            print("Portfolio Snapshot Response:", response.text)
+
+            print(
+                "Portfolio Snapshot Status:",
+                response.status_code,
+            )
+
+            if response.status_code >= 400:
+                print(
+                    "Portfolio Snapshot Response:",
+                    response.text,
+                )
+
+            response.raise_for_status()
 
