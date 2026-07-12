@@ -11,8 +11,6 @@ export async function authFetch(
     error,
   } = await supabase.auth.getSession();
 
-  console.log("Supabase session:", session);
-  console.log("Session error:", error);
 
   if (error) {
     throw new Error(
