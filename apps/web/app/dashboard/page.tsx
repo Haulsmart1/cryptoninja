@@ -1,4 +1,4 @@
-"use client";
+Ôªø"use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -96,47 +96,14 @@ export default function DashboardPage() {
 
   async function loadPortfolio() {
     try {
-      const response = await authFetch("/api/portfolio", {
-        cache: "no-store",
-      });
-
+      const response = await authFetch("/api/portfolio", { cache: "no-store" });
       const data = await response.json();
 
-      if (!response.ok) {
-        const reason =
-          data.error ??
-          data.detail ??
-          `Portfolio request failed (${response.status}).`;
-
-        if (response.status === 401) {
-          setMessage("Your session has expired. Please sign in again.");
-          setPortfolio(null);
-          return;
-        }
-
-        throw new Error(reason);
+      if (!data.error) {
+        setPortfolio(data);
       }
-
-      setPortfolio({
-        cash: Number(data.cash ?? 0),
-        invested: Number(data.invested ?? 0),
-        market_value: Number(data.market_value ?? 0),
-        portfolio_value: Number(data.portfolio_value ?? 0),
-        unrealized_pnl: Number(
-          data.unrealized_pnl ??
-          data.unrealised_pnl ??
-          0
-        ),
-        return_percent: Number(data.return_percent ?? 0),
-        btc_price: Number(data.btc_price ?? 0),
-      });
-    } catch (error) {
+    } catch {
       setPortfolio(null);
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to load portfolio."
-      );
     }
   }
 
@@ -262,7 +229,7 @@ export default function DashboardPage() {
                 ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
                 : "border-red-400/30 bg-red-400/10 text-red-300"
             }`}>
-              {online ? "? Engine Online" : "? Engine Offline"}
+              {online ? "‚óè Engine Online" : "‚óè Engine Offline"}
             </div>
           </div>
         </section>
@@ -294,10 +261,10 @@ export default function DashboardPage() {
         </div>
 
         <section className="mt-8 grid gap-4 md:grid-cols-4">
-          <Card label="Portfolio Value" value={loading ? "Loading..." : `£${estimatedPortfolioValue.toLocaleString()}`} />
-          <Card label="Cash" value={`£${displayCash.toLocaleString()}`} />
-          <Card label="Invested" value={`£${displayInvested.toLocaleString()}`} />
-          <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}£${totalPnl.toFixed(2)}`} />
+          <Card label="Portfolio Value" value={loading ? "Loading..." : `¬£${estimatedPortfolioValue.toLocaleString()}`} />
+          <Card label="Cash" value={`¬£${displayCash.toLocaleString()}`} />
+          <Card label="Invested" value={`¬£${displayInvested.toLocaleString()}`} />
+          <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}¬£${totalPnl.toFixed(2)}`} />
           <Card label="Return" value={`${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`} />
           <Card label="Open Positions" value={String(openPositions)} />
           <Card label="Saved Trades" value={String(trades.length)} />
@@ -389,9 +356,9 @@ export default function DashboardPage() {
             <h2 className="text-2xl font-black">Performance</h2>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <Card label="Starting Balance" value="£10,000" />
-              <Card label="Current Value" value={`£${estimatedPortfolioValue.toLocaleString()}`} />
-              <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}£${totalPnl.toFixed(2)}`} />
+              <Card label="Starting Balance" value="¬£10,000" />
+              <Card label="Current Value" value={`¬£${estimatedPortfolioValue.toLocaleString()}`} />
+              <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}¬£${totalPnl.toFixed(2)}`} />
               <Card label="Return" value={`${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`} />
             </div>
           </div>
@@ -427,15 +394,15 @@ export default function DashboardPage() {
                     <tr key={holding.symbol} className="border-t border-white/10">
                       <td className="p-4 font-bold">{holding.symbol}</td>
                       <td className="p-4">{holding.quantity}</td>
-                      <td className="p-4">£{holding.cost.toFixed(2)}</td>
+                      <td className="p-4">¬£{holding.cost.toFixed(2)}</td>
                       <td className="p-4">
-                        £{(holding.cost / holding.quantity).toLocaleString()}
+                        ¬£{(holding.cost / holding.quantity).toLocaleString()}
                       </td>
                       <td className="p-4">
-                        £{Number(prices[holding.symbol] ?? holding.cost / holding.quantity).toLocaleString()}
+                        ¬£{Number(prices[holding.symbol] ?? holding.cost / holding.quantity).toLocaleString()}
                       </td>
                       <td className="p-4">
-                        £{(holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity)).toFixed(2)}
+                        ¬£{(holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity)).toFixed(2)}
                       </td>
                       <td
                         className={`p-4 ${
@@ -445,7 +412,7 @@ export default function DashboardPage() {
                         }`}
                       >
                         {holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity) - holding.cost >= 0 ? "+" : ""}
-                        £{((holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity)) - holding.cost).toFixed(2)}
+                        ¬£{((holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity)) - holding.cost).toFixed(2)}
                       </td>
                       <td
                         className={`p-4 ${
@@ -500,8 +467,8 @@ export default function DashboardPage() {
                       </td>
                       <td className="p-4 font-bold">{trade.symbol}</td>
                       <td className="p-4 text-cyan-300">{trade.side.toUpperCase()}</td>
-                      <td className="p-4">£{Number(trade.value_gbp).toFixed(2)}</td>
-                      <td className="p-4">£{Number(trade.cash_gbp ?? 0).toLocaleString()}</td>
+                      <td className="p-4">¬£{Number(trade.value_gbp).toFixed(2)}</td>
+                      <td className="p-4">¬£{Number(trade.cash_gbp ?? 0).toLocaleString()}</td>
                       <td className="p-4 text-emerald-300">{trade.status}</td>
                     </tr>
                   ))
@@ -532,9 +499,9 @@ export default function DashboardPage() {
               <InfoRow label="Trade ID" value={selectedTrade.id} />
               <InfoRow label="Side" value={selectedTrade.side.toUpperCase()} />
               <InfoRow label="Quantity" value={selectedTrade.quantity} />
-              <InfoRow label="Price" value={`£${selectedTrade.price}`} />
-              <InfoRow label="Value" value={`£${selectedTrade.value_gbp}`} />
-              <InfoRow label="Cash After Trade" value={`£${selectedTrade.cash_gbp ?? "0"}`} />
+              <InfoRow label="Price" value={`¬£${selectedTrade.price}`} />
+              <InfoRow label="Value" value={`¬£${selectedTrade.value_gbp}`} />
+              <InfoRow label="Cash After Trade" value={`¬£${selectedTrade.cash_gbp ?? "0"}`} />
               <InfoRow label="Status" value={selectedTrade.status} />
               <InfoRow label="Reason" value={selectedTrade.reason ?? "-"} />
               <InfoRow label="Time" value={new Date(selectedTrade.created_at).toLocaleString()} />
@@ -581,7 +548,7 @@ function AllocationRow({
       <div className="flex items-center justify-between text-sm">
         <span className="font-bold text-white">{label}</span>
         <span className="text-slate-400">
-          £{value.toFixed(2)} ∑ {percentage.toFixed(1)}%
+          ¬£{value.toFixed(2)} ¬∑ {percentage.toFixed(1)}%
         </span>
       </div>
       <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/10">
@@ -611,7 +578,6 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
     </div>
   );
 }
-
 
 
 

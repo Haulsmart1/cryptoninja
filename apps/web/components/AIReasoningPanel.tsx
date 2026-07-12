@@ -50,7 +50,7 @@ export default function AIReasoningPanel() {
   return (
     <div className="rounded-3xl border border-cyan-400/20 bg-cyan-500/5 p-6">
       <h2 className="text-2xl font-black text-cyan-300">
-        ?? AI Market Analysis
+        🧠 AI Market Analysis
       </h2>
 
       <div className="mt-6 space-y-4">
@@ -64,7 +64,7 @@ export default function AIReasoningPanel() {
           value={
             typeof analysis.rsi === "number"
               ? analysis.rsi.toFixed(1)
-              : "�"
+              : "—"
           }
         />
 
@@ -92,4 +92,3 @@ function Metric({
     </div>
   );
 }
-
