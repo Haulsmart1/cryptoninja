@@ -26,6 +26,7 @@ type PortfolioSummary = {
   market_value: number;
   portfolio_value: number;
   unrealized_pnl: number;
+  total_pnl: number;
   return_percent: number;
   btc_price: number;
 };
@@ -216,7 +217,7 @@ export default function DashboardPage() {
   }, 0);
 
   const estimatedPortfolioValue = portfolio?.portfolio_value ?? latestCash + liveHoldingsValue;
-  const totalPnl = portfolio?.unrealized_pnl ?? estimatedPortfolioValue - startingBalance;
+  const totalPnl = portfolio?.total_pnl ?? estimatedPortfolioValue - startingBalance;
   const totalReturn = portfolio?.return_percent ?? (totalPnl / startingBalance) * 100;
   const displayCash = portfolio?.cash ?? latestCash;
   const displayInvested = portfolio?.invested ?? investedCapital;
@@ -260,7 +261,7 @@ export default function DashboardPage() {
                 ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
                 : "border-red-400/30 bg-red-400/10 text-red-300"
             }`}>
-              {online ? "● Engine Online" : "● Engine Offline"}
+              {online ? "â— Engine Online" : "â— Engine Offline"}
             </div>
           </div>
         </section>
@@ -292,10 +293,10 @@ export default function DashboardPage() {
         </div>
 
         <section className="mt-8 grid gap-4 md:grid-cols-4">
-          <Card label="Portfolio Value" value={loading ? "Loading..." : `£${estimatedPortfolioValue.toLocaleString()}`} />
-          <Card label="Cash" value={`£${displayCash.toLocaleString()}`} />
-          <Card label="Invested" value={`£${displayInvested.toLocaleString()}`} />
-          <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}£${totalPnl.toFixed(2)}`} />
+          <Card label="Portfolio Value" value={loading ? "Loading..." : `Â£${estimatedPortfolioValue.toLocaleString()}`} />
+          <Card label="Cash" value={`Â£${displayCash.toLocaleString()}`} />
+          <Card label="Invested" value={`Â£${displayInvested.toLocaleString()}`} />
+          <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}Â£${totalPnl.toFixed(2)}`} />
           <Card label="Return" value={`${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`} />
           <Card label="Open Positions" value={String(openPositions)} />
           <Card label="Saved Trades" value={String(trades.length)} />
@@ -387,9 +388,9 @@ export default function DashboardPage() {
             <h2 className="text-2xl font-black">Performance</h2>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <Card label="Starting Balance" value="£10,000" />
-              <Card label="Current Value" value={`£${estimatedPortfolioValue.toLocaleString()}`} />
-              <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}£${totalPnl.toFixed(2)}`} />
+              <Card label="Starting Balance" value="Â£10,000" />
+              <Card label="Current Value" value={`Â£${estimatedPortfolioValue.toLocaleString()}`} />
+              <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}Â£${totalPnl.toFixed(2)}`} />
               <Card label="Return" value={`${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`} />
             </div>
           </div>
@@ -425,15 +426,15 @@ export default function DashboardPage() {
                     <tr key={holding.symbol} className="border-t border-white/10">
                       <td className="p-4 font-bold">{holding.symbol}</td>
                       <td className="p-4">{holding.quantity}</td>
-                      <td className="p-4">£{holding.cost.toFixed(2)}</td>
+                      <td className="p-4">Â£{holding.cost.toFixed(2)}</td>
                       <td className="p-4">
-                        £{(holding.cost / holding.quantity).toLocaleString()}
+                        Â£{(holding.cost / holding.quantity).toLocaleString()}
                       </td>
                       <td className="p-4">
-                        £{Number(prices[holding.symbol] ?? holding.cost / holding.quantity).toLocaleString()}
+                        Â£{Number(prices[holding.symbol] ?? holding.cost / holding.quantity).toLocaleString()}
                       </td>
                       <td className="p-4">
-                        £{(holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity)).toFixed(2)}
+                        Â£{(holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity)).toFixed(2)}
                       </td>
                       <td
                         className={`p-4 ${
@@ -443,7 +444,7 @@ export default function DashboardPage() {
                         }`}
                       >
                         {holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity) - holding.cost >= 0 ? "+" : ""}
-                        £{((holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity)) - holding.cost).toFixed(2)}
+                        Â£{((holding.quantity * Number(prices[holding.symbol] ?? holding.cost / holding.quantity)) - holding.cost).toFixed(2)}
                       </td>
                       <td
                         className={`p-4 ${
@@ -498,8 +499,8 @@ export default function DashboardPage() {
                       </td>
                       <td className="p-4 font-bold">{trade.symbol}</td>
                       <td className="p-4 text-cyan-300">{trade.side.toUpperCase()}</td>
-                      <td className="p-4">£{Number(trade.value_gbp).toFixed(2)}</td>
-                      <td className="p-4">£{Number(trade.cash_gbp ?? 0).toLocaleString()}</td>
+                      <td className="p-4">Â£{Number(trade.value_gbp).toFixed(2)}</td>
+                      <td className="p-4">Â£{Number(trade.cash_gbp ?? 0).toLocaleString()}</td>
                       <td className="p-4 text-emerald-300">{trade.status}</td>
                     </tr>
                   ))
@@ -530,9 +531,9 @@ export default function DashboardPage() {
               <InfoRow label="Trade ID" value={selectedTrade.id} />
               <InfoRow label="Side" value={selectedTrade.side.toUpperCase()} />
               <InfoRow label="Quantity" value={selectedTrade.quantity} />
-              <InfoRow label="Price" value={`£${selectedTrade.price}`} />
-              <InfoRow label="Value" value={`£${selectedTrade.value_gbp}`} />
-              <InfoRow label="Cash After Trade" value={`£${selectedTrade.cash_gbp ?? "0"}`} />
+              <InfoRow label="Price" value={`Â£${selectedTrade.price}`} />
+              <InfoRow label="Value" value={`Â£${selectedTrade.value_gbp}`} />
+              <InfoRow label="Cash After Trade" value={`Â£${selectedTrade.cash_gbp ?? "0"}`} />
               <InfoRow label="Status" value={selectedTrade.status} />
               <InfoRow label="Reason" value={selectedTrade.reason ?? "-"} />
               <InfoRow label="Time" value={new Date(selectedTrade.created_at).toLocaleString()} />
@@ -579,7 +580,7 @@ function AllocationRow({
       <div className="flex items-center justify-between text-sm">
         <span className="font-bold text-white">{label}</span>
         <span className="text-slate-400">
-          £{value.toFixed(2)} · {percentage.toFixed(1)}%
+          Â£{value.toFixed(2)} Â· {percentage.toFixed(1)}%
         </span>
       </div>
       <div className="mt-2 h-3 overflow-hidden rounded-full bg-white/10">
