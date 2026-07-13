@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 const PRODUCTS = ["BTC-GBP", "ETH-GBP", "SOL-GBP"];
 
@@ -7,20 +7,34 @@ export async function GET() {
     const results = await Promise.all(
       PRODUCTS.map(async (productId) => {
         const response = await fetch(
-          `https://api.coinbase.com/api/v3/brokerage/market/products/${productId}`,
-          { cache: "no-store" }
+          `https://api.exchange.coinbase.com/products/${productId}/ticker`,
+          {
+            cache: "no-store",
+            headers: {
+              Accept: "application/json",
+            },
+          }
         );
 
         if (!response.ok) {
-          return [productId, null];
+          return [productId, null] as const;
         }
 
-        const data = await response.json();
-        return [productId, Number(data.price || 0)];
+        const data: { price?: string } = await response.json();
+        const price = Number(data.price);
+
+        return [
+          productId,
+          Number.isFinite(price) && price > 0 ? price : null,
+        ] as const;
       })
     );
 
-    return NextResponse.json(Object.fromEntries(results));
+    return NextResponse.json(Object.fromEntries(results), {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
   } catch {
     return NextResponse.json(
       {
