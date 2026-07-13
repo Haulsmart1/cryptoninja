@@ -49,8 +49,6 @@ export async function GET(
       status: response.status,
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
-        "X-Analysis-Upstream": analysisUrl,
-        "X-Analysis-Upstream-Status": String(response.status),
       },
     });
   } catch (error) {
