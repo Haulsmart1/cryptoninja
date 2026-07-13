@@ -14,11 +14,17 @@ class SupabaseLogger:
             "Prefer": "return=representation",
         }
 
-    async def log_ai_signal(self, signal: dict, executed: bool) -> None:
+    async def log_ai_signal(
+        self,
+        user_id: str,
+        signal: dict,
+        executed: bool,
+    ) -> None:
         if not self.supabase_url or not self.service_key:
             return
 
         payload = {
+            "user_id": user_id,
             "symbol": signal["symbol"],
             "action": signal["side"].upper(),
             "confidence": signal.get("confidence", 75),
@@ -34,11 +40,17 @@ class SupabaseLogger:
             )
             print("AI Signal Status:", response.status_code)
 
-    async def log_paper_trade(self, trade: dict, cash_gbp: float) -> None:
+    async def log_paper_trade(
+        self,
+        user_id: str,
+        trade: dict,
+        cash_gbp: float,
+    ) -> None:
         if not self.supabase_url or not self.service_key:
             return
 
         payload = {
+            "user_id": user_id,
             "engine_trade_id": trade["id"],
             "symbol": trade["symbol"],
             "side": trade["side"],
