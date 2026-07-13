@@ -1,8 +1,10 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-const configuredEngineUrl = process.env.TRADING_ENGINE_URL;
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const configuredEngineUrl = process.env.TRADING_ENGINE_URL;
+
   if (!configuredEngineUrl) {
     return NextResponse.json(
       {
@@ -14,15 +16,28 @@ export async function GET() {
     );
   }
 
-  const engineUrl = configuredEngineUrl.replace(/\/+$/, "");
+  const engineUrl = configuredEngineUrl.trim().replace(/\/+$/, "");
   const healthUrl = `${engineUrl}/health`;
 
   try {
     const response = await fetch(healthUrl, {
       cache: "no-store",
+      headers: {
+        Accept: "application/json",
+      },
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+
+    let data: unknown;
+
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      data = {
+        message: responseText || "Trading engine returned an empty response.",
+      };
+    }
 
     if (!response.ok) {
       console.error("Trading engine health returned an error:", {
@@ -35,13 +50,20 @@ export async function GET() {
         {
           status: "offline",
           paper_trading: true,
+          requested_url: healthUrl,
+          upstream_status: response.status,
           error: data,
         },
-        { status: response.status }
+        { status: 503 }
       );
     }
 
-    return NextResponse.json(data, { status: 200 });
+    return NextResponse.json(data, {
+      status: 200,
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    });
   } catch (error) {
     const message =
       error instanceof Error
@@ -58,6 +80,7 @@ export async function GET() {
       {
         status: "offline",
         paper_trading: true,
+        requested_url: healthUrl,
         error: message,
       },
       { status: 503 }
