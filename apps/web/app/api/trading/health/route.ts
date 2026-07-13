@@ -1,9 +1,9 @@
 ﻿import { NextResponse } from "next/server";
 
-const engineUrl = process.env.TRADING_ENGINE_URL;
+const configuredEngineUrl = process.env.TRADING_ENGINE_URL;
 
 export async function GET() {
-  if (!engineUrl) {
+  if (!configuredEngineUrl) {
     return NextResponse.json(
       {
         status: "offline",
@@ -14,14 +14,23 @@ export async function GET() {
     );
   }
 
+  const engineUrl = configuredEngineUrl.replace(/\/+$/, "");
+  const healthUrl = `${engineUrl}/health`;
+
   try {
-    const response = await fetch(`${engineUrl}/health`, {
+    const response = await fetch(healthUrl, {
       cache: "no-store",
     });
 
     const data = await response.json();
 
     if (!response.ok) {
+      console.error("Trading engine health returned an error:", {
+        healthUrl,
+        status: response.status,
+        data,
+      });
+
       return NextResponse.json(
         {
           status: "offline",
@@ -32,9 +41,7 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(data, {
-      status: 200,
-    });
+    return NextResponse.json(data, { status: 200 });
   } catch (error) {
     const message =
       error instanceof Error
@@ -42,7 +49,7 @@ export async function GET() {
         : "Unknown trading engine health error.";
 
     console.error("Trading engine health request failed:", {
-      engineUrl,
+      healthUrl,
       message,
       error,
     });
