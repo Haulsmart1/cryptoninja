@@ -13,6 +13,8 @@ from portfolio import get_portfolio_summary
 from risk_engine import RiskEngine
 from supabase_client import SupabaseLogger
 
+print("LOADING ROOT TRADING ENGINE main.py")
+
 app = FastAPI(title=settings.app_name)
 
 risk_engine = RiskEngine(
