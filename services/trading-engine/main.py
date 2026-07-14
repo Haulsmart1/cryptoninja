@@ -114,6 +114,8 @@ async def execute_paper_decision(
         decision_data.get("action", "HOLD")
     ).upper()
 
+    portfolio_before = get_portfolio_summary(user_id)
+
     if action != "BUY":
         reasons = decision_data.get("reasons", [])
         reason = decision_data.get("reason")
@@ -145,6 +147,13 @@ async def execute_paper_decision(
             executed=False,
         )
 
+        await logger.log_ai_memory(
+            user_id,
+            decision_data,
+            portfolio_before,
+            executed=False,
+        )
+
         return {
             "executed": False,
             "reason": f"{action} execution is not enabled yet.",
@@ -157,12 +166,18 @@ async def execute_paper_decision(
     )
 
     if price <= 0 or position_size_gbp <= 0:
+        await logger.log_ai_memory(
+            user_id,
+            decision_data,
+            portfolio_before,
+            executed=False,
+        )
+
         return {
             "executed": False,
             "reason": "Invalid price or position size.",
         }
 
-    portfolio_before = get_portfolio_summary(user_id)
     available_cash = float(
         portfolio_before.get("cash", 0)
     )
@@ -174,6 +189,13 @@ async def execute_paper_decision(
     )
 
     if trade_value <= 0:
+        await logger.log_ai_memory(
+            user_id,
+            decision_data,
+            portfolio_before,
+            executed=False,
+        )
+
         return {
             "executed": False,
             "reason": "Insufficient paper cash.",
@@ -200,6 +222,13 @@ async def execute_paper_decision(
             executed=False,
         )
 
+        await logger.log_ai_memory(
+            user_id,
+            decision_data,
+            portfolio_before,
+            executed=False,
+        )
+
         return {
             "executed": False,
             "reason": risk_decision.reason,
@@ -218,6 +247,13 @@ async def execute_paper_decision(
     await logger.log_ai_signal(
         user_id,
         signal,
+        executed=True,
+    )
+
+    await logger.log_ai_memory(
+        user_id,
+        decision_data,
+        portfolio_before,
         executed=True,
     )
 
