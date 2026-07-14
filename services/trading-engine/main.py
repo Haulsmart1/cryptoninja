@@ -115,6 +115,36 @@ async def execute_paper_decision(
     ).upper()
 
     if action != "BUY":
+        reasons = decision_data.get("reasons", [])
+        reason = decision_data.get("reason")
+
+        if not reason and isinstance(reasons, list):
+            reason = "; ".join(
+                str(item)
+                for item in reasons
+                if item
+            )
+
+        signal = {
+            "symbol": decision_data.get(
+                "symbol",
+                "BTC-GBP",
+            ),
+            "side": action.lower(),
+            "confidence": int(
+                decision_data.get("confidence", 0)
+            ),
+            "reason": reason or (
+                f"{action} decision recorded."
+            ),
+        }
+
+        await logger.log_ai_signal(
+            user_id,
+            signal,
+            executed=False,
+        )
+
         return {
             "executed": False,
             "reason": f"{action} execution is not enabled yet.",
