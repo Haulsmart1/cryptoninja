@@ -40,6 +40,20 @@ class SupabaseLogger:
             )
             print("AI Signal Status:", response.status_code)
 
+            if response.status_code >= 400:
+                error_body = response.text
+
+                print(
+                    "AI Signal Response:",
+                    error_body,
+                )
+
+                raise RuntimeError(
+                    "AI signal insert failed "
+                    f"({response.status_code}): "
+                    f"{error_body}"
+                )
+
     async def log_ai_memory(
         self,
         user_id: str,
