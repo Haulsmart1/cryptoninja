@@ -148,12 +148,18 @@ class SupabaseLogger:
             )
 
             if response.status_code >= 400:
+                error_body = response.text
+
                 print(
                     "AI Memory Response:",
-                    response.text,
+                    error_body,
                 )
 
-            response.raise_for_status()
+                raise RuntimeError(
+                    "AI memory insert failed "
+                    f"({response.status_code}): "
+                    f"{error_body}"
+                )
 
 
     async def log_paper_trade(
