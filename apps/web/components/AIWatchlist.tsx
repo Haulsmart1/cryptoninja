@@ -14,6 +14,9 @@ export default function AIWatchlist() {
       <h2 className="text-2xl font-black text-cyan-300">
         🧠 AI Watchlist
       </h2>
+      <p className="mt-2 text-sm text-amber-300">
+        Illustrative examples only. These fixed scores and actions are not live AI signals.
+      </p>
 
       <div className="mt-6 space-y-4">
         {watchlist.map((coin) => (

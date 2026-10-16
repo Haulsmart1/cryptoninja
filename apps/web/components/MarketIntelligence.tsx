@@ -65,7 +65,7 @@ export default function MarketIntelligence() {
       <Card title="SOL" value={money(prices["SOL-GBP"])} />
       <Card title="Portfolio" value={money(portfolio.portfolio_value)} />
       <Card title="Engine" value={health.status === "healthy" ? "🟢 ONLINE" : "🔴 OFFLINE"} />
-      <Card title="AI" value="82%" />
+      <Card title="AI" value="Not verified" />
     </div>
   );
 }

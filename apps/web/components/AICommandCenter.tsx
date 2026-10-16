@@ -1,21 +1,21 @@
 ﻿"use client";
 
-export default function AICommandCenter() {
+export default function AICommandCenter({ online = false }: { online?: boolean }) {
   const widgets = [
     {
       title: "AI Status",
-      value: "ONLINE",
-      colour: "text-emerald-300",
+      value: "Not verified",
+      colour: "text-slate-300",
     },
     {
       title: "Market",
-      value: "Bullish",
+      value: "Not assessed",
       colour: "text-cyan-300",
     },
     {
       title: "Risk",
-      value: "Low",
-      colour: "text-emerald-300",
+      value: "Not assessed",
+      colour: "text-slate-300",
     },
     {
       title: "Strategy",
@@ -36,8 +36,8 @@ export default function AICommandCenter() {
           </h2>
         </div>
 
-        <div className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-300">
-          ● LIVE
+        <div role="status" className="rounded-full border border-cyan-400/30 px-4 py-2 text-sm font-bold text-cyan-300">
+          {online ? "Engine connected" : "Engine unavailable"}
         </div>
       </div>
 
@@ -62,8 +62,8 @@ export default function AICommandCenter() {
         </p>
 
         <p className="mt-3 text-slate-300">
-          Monitoring BTC, ETH and SOL. Paper trading remains enabled while
-          risk controls are active. Waiting for the next qualifying signal.
+          Paper trading only. Engine connectivity does not verify AI analysis,
+          risk assessment or automated trading activity. No live-money trading.
         </p>
       </div>
     </section>
