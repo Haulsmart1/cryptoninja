@@ -16,11 +16,7 @@ export function normalizeEmail(email) {
 }
 
 export function getAuthRedirectUrl(path, origin) {
-  const safePath = path.startsWith("/") && !path.startsWith("//")
-    ? path
-    : "/dashboard";
-
-  return new URL(safePath, origin).toString();
+  return new URL(safeRedirectPath(path), origin).toString();
 }
 
 export function getAuthErrorMessage(code) {
@@ -32,7 +28,12 @@ export function getAuthErrorMessage(code) {
 }
 
 export function safeRedirectPath(value) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+  if (
+    typeof value !== "string" ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    /[\\\u0000-\u0020\u007f]/.test(value)
+  ) {
     return "/dashboard";
   }
 
