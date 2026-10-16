@@ -1,18 +1,30 @@
 ﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "../../lib/supabase-browser";
-
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://crypto-ninja.app";
+import {
+  getAuthErrorMessage,
+  getAuthRedirectUrl,
+  normalizeEmail,
+} from "../../lib/auth-flow.mjs";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("auth_error")
+      ?? new URLSearchParams(window.location.search).get("error");
+    const friendlyMessage = getAuthErrorMessage(code);
+
+    if (friendlyMessage) {
+      setMessage(friendlyMessage);
+    }
+  }, []);
+
   async function signIn() {
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = normalizeEmail(email);
 
     if (!normalizedEmail) {
       setMessage("Enter your email address.");
@@ -28,7 +40,11 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOtp({
         email: normalizedEmail,
         options: {
-          emailRedirectTo: `${siteUrl}/auth/callback?next=/dashboard`,
+          emailRedirectTo: getAuthRedirectUrl(
+            "/auth/callback?next=/dashboard",
+            window.location.origin,
+          ),
+          shouldCreateUser: false,
         },
       });
 
@@ -61,31 +77,35 @@ export default function LoginPage() {
           Enter your email and we will send you a secure magic link.
         </p>
 
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void signIn();
+          }}
+        >
+        <label className="sr-only" htmlFor="login-email">Email address</label>
         <input
+          id="login-email"
           className="mt-8 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-cyan-300"
           type="email"
           autoComplete="email"
+          required
           placeholder="you@example.com"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              void signIn();
-            }
-          }}
         />
 
         <button
-          type="button"
-          onClick={() => void signIn()}
+          type="submit"
           disabled={loading || !email.trim()}
           className="mt-4 w-full rounded-xl bg-cyan-300 px-4 py-3 font-black text-slate-950 disabled:opacity-50"
         >
           {loading ? "Sending..." : "Send magic link"}
         </button>
+        </form>
 
         {message && (
-          <p className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-slate-300">
+          <p role="status" aria-live="polite" className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-slate-300">
             {message}
           </p>
         )}

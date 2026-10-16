@@ -71,9 +71,15 @@ const plans = [
   ["Elite", "£99/mo", "Multi-exchange support, portfolio optimisation and priority features"],
 ];
 
-export default function HomePage({ searchParams }: { searchParams?: { code?: string } }) {
-  if (searchParams?.code) {
-    redirect(`/auth/callback?code=${searchParams.code}&next=/dashboard`);
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ code?: string }>;
+}) {
+  const query = await searchParams;
+
+  if (query?.code) {
+    redirect(`/auth/callback?code=${encodeURIComponent(query.code)}&next=/dashboard`);
   }
 
   const jsonLd = {

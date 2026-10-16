@@ -4,8 +4,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { symbol: string } }
+  { params }: { params: Promise<{ symbol: string }> }
 ) {
+  const { symbol } = await params;
   const configuredEngineUrl = process.env.TRADING_ENGINE_URL;
 
   if (!configuredEngineUrl) {
@@ -20,7 +21,7 @@ export async function GET(
     .replace(/\/+$/, "");
 
   const analysisUrl =
-    `${engineUrl}/analysis/${encodeURIComponent(params.symbol)}`;
+    `${engineUrl}/analysis/${encodeURIComponent(symbol)}`;
 
   try {
     const response = await fetch(analysisUrl, {
