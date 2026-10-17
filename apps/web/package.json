@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test:auth": "node --test lib/auth-flow.test.mjs lib/email-verification.test.mjs lib/email-route.test.mjs"
+    "test:auth": "node --test lib/auth-flow.test.mjs lib/email-verification.test.mjs lib/email-route.test.mjs lib/human-confirm.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

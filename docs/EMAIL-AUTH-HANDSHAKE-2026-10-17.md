@@ -27,4 +27,12 @@ Acceptance: a new email sign-in on production, opening in the email client's bro
 must reach an authenticated dashboard; logout and fresh login must both succeed.
 No tokens or codes should be pasted into logs or chat. PAPER ONLY is unchanged.
 
+The `/auth/confirm` landing GET must not redeem tokens: email security scanners
+may prefetch it. The user explicitly submits its same-origin confirmation form;
+only POST calls the existing Supabase verification handler. Check this additional
+button step during acceptance. Direct legacy `/auth/callback` links remain supported;
+the hosted Magic Link template must point to `/auth/confirm` for this protection.
+
+Reference: https://supabase.com/docs/guides/auth/auth-email-templates#email-prefetching
+
 Reference: https://supabase.com/docs/guides/auth/auth-email-passwordless
