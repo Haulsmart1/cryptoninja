@@ -1,4 +1,6 @@
 const authErrorMessages = {
+  missing_auth_context:
+    "We couldn't complete the secure sign-in handshake. The sign-in service did not receive its browser verification cookie. Please contact support if this continues.",
   callback_failed:
     "We couldn't verify that sign-in link. Request a fresh link and try again.",
   expired_link:

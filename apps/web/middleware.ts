@@ -1,7 +1,13 @@
-﻿import { createServerClient } from "@supabase/ssr";
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { canonicalAuthUrl } from "./lib/email-verification.mjs";
 
 export async function middleware(request: NextRequest) {
+  // Canonicalize before the login page creates a host-only verifier cookie.
+  // Otherwise a request on the apex can return to www without its PKCE state.
+  const canonicalUrl = canonicalAuthUrl(request.url);
+  if (canonicalUrl) return NextResponse.redirect(canonicalUrl, 307);
+
   let response = NextResponse.next({
     request,
   });
