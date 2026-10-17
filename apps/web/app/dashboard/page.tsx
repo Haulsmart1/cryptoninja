@@ -269,7 +269,7 @@ export default function DashboardPage() {
         <MarketIntelligence />
 
         <div className="mt-8">
-          <AICommandCenter />
+          <AICommandCenter online={online} />
         </div>
 
         <div className="mt-8">

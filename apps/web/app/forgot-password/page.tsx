@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { createClient } from "../../lib/supabase-browser";
+import { getAuthRedirectUrl, normalizeEmail } from "../../lib/auth-flow.mjs";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -10,23 +11,37 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
 
   async function sendReset() {
-    setLoading(true);
-    setMessage("");
-
-    const supabase = createClient();
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
-    });
-
-    setLoading(false);
-
-    if (error) {
-      setMessage(error.message);
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail) {
+      setMessage("Enter your email address.");
       return;
     }
 
-    setMessage("Password reset link sent. Check your email.");
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const supabase = createClient();
+
+      const { error } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
+        redirectTo: getAuthRedirectUrl(
+          "/auth/callback?next=/reset-password",
+          window.location.origin,
+        ),
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setMessage("If an account exists for that address, a reset link is on its way. Check your email.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to send a password reset link.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -42,24 +57,35 @@ export default function ForgotPasswordPage() {
           Enter your email and we will send you a secure reset link.
         </p>
 
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void sendReset();
+          }}
+        >
+        <label className="sr-only" htmlFor="reset-email">Email address</label>
         <input
+          id="reset-email"
           className="mt-8 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white outline-none focus:border-cyan-300"
           type="email"
+          autoComplete="email"
+          required
           placeholder="you@example.com"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
         />
 
         <button
-          onClick={sendReset}
-          disabled={loading || !email}
+          type="submit"
+          disabled={loading || !email.trim()}
           className="mt-4 w-full rounded-xl bg-cyan-300 px-4 py-3 font-black text-slate-950 disabled:opacity-50"
         >
           {loading ? "Sending..." : "Send reset link"}
         </button>
+        </form>
 
         {message && (
-          <p className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-slate-300">
+          <p role="status" aria-live="polite" className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-slate-300">
             {message}
           </p>
         )}
