@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { authFetch } from "../lib/auth-fetch";
 
 type AutoTraderDecision = {
@@ -38,8 +38,10 @@ export default function AutoTraderPanel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const statusRequest = useRef(0);
 
   const loadStatus = useCallback(async () => {
+    const requestNumber = ++statusRequest.current;
     try {
       const response = await authFetch("/api/autotrader/status", {
         cache: "no-store",
@@ -55,9 +57,18 @@ export default function AutoTraderPanel() {
         );
       }
 
+      if (typeof data?.enabled !== "boolean" ||
+          (data.emergency_stop !== undefined && typeof data.emergency_stop !== "boolean")) {
+        throw new Error("Trading engine returned an invalid status.");
+      }
+
+      if (requestNumber !== statusRequest.current) return;
       setStatus(data as AutoTraderStatus);
       setError("");
     } catch (caughtError) {
+      if (requestNumber !== statusRequest.current) return;
+      // A previous successful poll cannot establish current engine state.
+      setStatus(null);
       setError(
         caughtError instanceof Error
           ? caughtError.message
@@ -146,7 +157,9 @@ export default function AutoTraderPanel() {
                 : "border-slate-400/20 bg-slate-400/10 text-slate-300"
           }`}
         >
-          {emergencyStop
+          {!status
+            ? "● UNAVAILABLE"
+            : emergencyStop
             ? "● SAFETY LOCKED"
             : running
               ? "● RUNNING"
@@ -157,30 +170,30 @@ export default function AutoTraderPanel() {
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Card
           title="Trades Today"
-          value={String(status?.trades_today ?? 0)}
+          value={status?.trades_today !== undefined ? String(status.trades_today) : "—"}
         />
         <Card
           title="Min Confidence"
-          value={`${status?.min_confidence ?? 85}%`}
+          value={status?.min_confidence !== undefined ? `${status.min_confidence}%` : "—"}
         />
         <Card
           title="Max Risk"
-          value={`${status?.max_risk_score ?? 50}/100`}
+          value={status?.max_risk_score !== undefined ? `${status.max_risk_score}/100` : "—"}
         />
         <Card
           title="Interval"
-          value={`${Math.round((status?.interval_seconds ?? 300) / 60)} min`}
+          value={status?.interval_seconds !== undefined ? `${Math.round(status.interval_seconds / 60)} min` : "—"}
         />
         <Card
           title="Last Action"
-          value={decision?.action ?? "None"}
+          value={decision?.action ?? (status ? "None" : "—")}
         />
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Metric
           title="Symbol"
-          value={decision?.symbol ?? "Waiting"}
+          value={decision?.symbol ?? (status ? "Waiting" : "—")}
         />
         <Metric
           title="Confidence"
@@ -210,7 +223,9 @@ export default function AutoTraderPanel() {
         </p>
 
         <p className="mt-2 text-lg font-black">
-          {decision
+          {!status
+            ? "Engine status is unavailable. Refresh to check again."
+            : decision
             ? `${decision.action ?? "HOLD"} ${decision.symbol ?? ""}`
             : "Waiting for the first decision cycle"}
         </p>
@@ -250,7 +265,7 @@ export default function AutoTraderPanel() {
         <button
           type="button"
           onClick={() => void control("start")}
-          disabled={loading || running || emergencyStop}
+          disabled={loading || !status || running || emergencyStop}
           className="rounded-xl bg-cyan-300 px-5 py-3 font-black text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {loading ? "Working..." : "Start Auto-Trader"}
@@ -259,7 +274,7 @@ export default function AutoTraderPanel() {
         <button
           type="button"
           onClick={() => void control("stop")}
-          disabled={loading || !running}
+          disabled={loading || (status !== null && !running)}
           className="rounded-xl border border-red-400/30 bg-red-400/10 px-5 py-3 font-black text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Stop Auto-Trader
