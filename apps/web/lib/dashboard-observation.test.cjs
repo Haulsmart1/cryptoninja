@@ -12,7 +12,9 @@ function harness(healthReplies, tradeReplies = [{ data: [], error: null }]) {
   let cursor = 0, refCursor = 0, poll, cleanup;
   const compiled = ts.transpileModule(readFileSync(`${__dirname}/../app/dashboard/page.tsx`, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-  }).outputText;
+  // These existing unit cases exercise the unchanged inner data view; the
+  // separate real-DOM boundary suite covers the exported composition.
+  }).outputText + '\nexports.default = DashboardContent;';
   const exports = {};
   const query = { select() { return this; }, order() { return this; }, async limit() {
     const reply = tradeReplies.shift() ?? { data: [], error: null };

@@ -13,7 +13,9 @@ function harness(path, responses, props = {}) {
   let cursor = 0, refCursor = 0, poll, cleanup;
   const compiled = ts.transpileModule(readFileSync(`${__dirname}/../${path}`, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-  }).outputText;
+  // Preserve these inner-view and chart units; the real-DOM boundary suite
+  // verifies that the exported dashboard cannot expose them without identity.
+  }).outputText + (path.includes('dashboard') ? '\nexports.default = DashboardContent;' : '');
   const exports = {};
   const query = { select() { return this; }, order() { return this; }, limit: async () => ({ data: path.includes('dashboard') ? [] : responses.shift(), error: null }) };
   const timers = { setInterval(callback) { poll = callback; return 1; }, clearInterval() {} };
