@@ -71,12 +71,56 @@ export default function DashboardPage() {
   const generation = useRef(0);
   const expectedOwner = useRef<string | null | undefined>(undefined);
   const listening = useRef(false);
+  const signOutRequest = useRef<{ owner: string; valid: boolean } | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutMessage, setSignOutMessage] = useState("");
+
+  async function signOut() {
+    if (!owner || signOutRequest.current) return;
+    const operation = { owner, valid: true };
+    signOutRequest.current = operation;
+    setSigningOut(true);
+    setSignOutMessage("");
+    const current = () => operation.valid && signOutRequest.current === operation;
+    const timer = setTimeout(() => {
+      if (!current()) return;
+      operation.valid = false;
+      // The SDK request may still finish. Do not issue another mutation until
+      // reload has re-established the session, or claim a successful logout.
+      setSignOutMessage("Sign-out could not be confirmed. Reload to check your session.");
+    }, 10000);
+    try {
+      const client = createClient();
+      const { data: identity, error: identityError } = await client.auth.getUser();
+      if (!current()) return;
+      if (identityError || identity.user?.id !== operation.owner) throw new Error("Identity changed");
+      const { error } = await client.auth.signOut({ scope: "local" });
+      if (!current()) return;
+      if (error) throw new Error("Sign-out unavailable");
+      const { data, error: sessionError } = await client.auth.getSession();
+      if (!current()) return;
+      if (sessionError || data.session !== null) throw new Error("Sign-out not confirmed");
+      window.location.assign("/login");
+    } catch {
+      if (current()) {
+        setSignOutMessage("Sign-out could not be confirmed. Reload to check your session.");
+        // An uncertain mutation is not safe to retry against a changed session.
+        operation.valid = false;
+      }
+    } finally { clearTimeout(timer); }
+  }
 
   useEffect(() => {
     let active = true;
     try {
       const { data: { subscription } } = createClient().auth.onAuthStateChange((event, session) => {
         if (!active) return;
+        if (event !== "SIGNED_OUT" && signOutRequest.current) {
+          signOutRequest.current.valid = false;
+          // Invalidate navigation, but retain the mutation lock: the original
+          // SDK sign-out cannot be cancelled and may still be in flight.
+          setSignOutMessage("Your session changed during sign-out. Reload to check your session.");
+        }
         generation.current += 1;
         expectedOwner.current = event === "SIGNED_OUT" ? null : session?.user?.id ?? null;
         setOwner(null);
@@ -84,10 +128,10 @@ export default function DashboardPage() {
         setRevision(value => value + 1);
       });
       listening.current = true;
-      return () => { active = false; listening.current = false; generation.current += 1; subscription.unsubscribe(); };
+      return () => { active = false; listening.current = false; generation.current += 1; if (signOutRequest.current) signOutRequest.current.valid = false; subscription.unsubscribe(); };
     } catch {
       setIdentity("unavailable");
-      return () => { active = false; generation.current += 1; };
+      return () => { active = false; generation.current += 1; if (signOutRequest.current) signOutRequest.current.valid = false; };
     }
   }, []);
 
@@ -119,9 +163,9 @@ export default function DashboardPage() {
   }, [revision]);
 
   if (!owner) return <main className="mx-auto max-w-xl px-6 py-16"><p role="status">{
-    identity === "checking" ? "Checking your account..." : identity === "signed-out" ? "Sign in to view your dashboard." : "Account verification unavailable. Reload to retry."
-  }</p><Link href="/login">Sign in</Link></main>;
-  return <DashboardContent key={`${owner}:${revision}`} />;
+    signOutRequest.current ? "Sign-out is pending or unconfirmed. Reload to check your session before signing in again." : identity === "checking" ? "Checking your account..." : identity === "signed-out" ? "Sign in to view your dashboard." : "Account verification unavailable. Reload to retry."
+  }</p>{signOutMessage && <p role="alert">{signOutMessage}</p>}{!signOutRequest.current && <Link href="/login">Sign in</Link>}</main>;
+  return <><div className="mx-auto max-w-7xl px-6 pt-6"><button type="button" disabled={signingOut} onClick={() => void signOut()} className="rounded-xl border border-white/10 px-4 py-2 disabled:opacity-50">{signingOut ? signOutMessage ? "Sign-out unavailable" : "Signing out..." : "Sign out of this browser"}</button>{signOutMessage && <p role="alert">{signOutMessage}</p>}</div><DashboardContent key={`${owner}:${revision}`} /></>;
 }
 
 function DashboardContent() {
