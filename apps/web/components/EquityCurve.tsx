@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 import {
@@ -18,10 +17,6 @@ import {
 } from "recharts";
 
 import { createClient } from "../lib/supabase-browser";
-
-type EquityCurveProps = {
-  portfolioValue: number;
-};
 
 type EquityPoint = {
   portfolio_value: number;
@@ -79,6 +74,8 @@ function normalizeRows(
   rows: RawEquityPoint[]
 ): EquityPoint[] {
   return rows
+    .filter(row => typeof row.portfolio_value === "number" ||
+      (typeof row.portfolio_value === "string" && row.portfolio_value.trim() !== ""))
     .map((row) => ({
       portfolio_value: Number(row.portfolio_value),
       created_at: String(row.created_at ?? ""),
@@ -98,9 +95,7 @@ function normalizeRows(
     );
 }
 
-export default function EquityCurve({
-  portfolioValue,
-}: EquityCurveProps) {
+export default function EquityCurve() {
   const [history, setHistory] = useState<EquityPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -130,6 +125,7 @@ export default function EquityCurve({
 
       setError(null);
     } catch (loadError) {
+      setHistory([]);
       setError(
         loadError instanceof Error
           ? loadError.message
@@ -152,32 +148,9 @@ export default function EquityCurve({
     };
   }, [loadHistory]);
 
-  const chartData = useMemo(() => {
-    if (history.length > 0) {
-      return history;
-    }
-
-    const safeValue =
-      Number.isFinite(portfolioValue) &&
-      portfolioValue > 0
-        ? portfolioValue
-        : 10000;
-
-    const now = Date.now();
-
-    return [
-      {
-        portfolio_value: safeValue,
-        created_at: new Date(
-          now - 60_000
-        ).toISOString(),
-      },
-      {
-        portfolio_value: safeValue,
-        created_at: new Date(now).toISOString(),
-      },
-    ];
-  }, [history, portfolioValue]);
+  const chartData = history;
+  const hasHistory = !loading && !error && history.length > 0;
+  const hasChange = hasHistory && history.length > 1;
 
   const firstValue =
     chartData[0]?.portfolio_value ?? 0;
@@ -215,7 +188,7 @@ export default function EquityCurve({
       <div className="relative flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.3em] text-cyan-300">
-            Live Equity Curve
+            Saved Equity History
           </p>
 
           <h2 className="mt-2 text-2xl font-black text-white">
@@ -239,18 +212,18 @@ export default function EquityCurve({
       <div className="relative mt-6 grid gap-3 sm:grid-cols-3">
         <Metric
           label="Current Equity"
-          value={formatCurrency(currentValue)}
+          value={hasHistory ? formatCurrency(currentValue) : "Unavailable"}
           hint="Latest saved value"
         />
 
         <Metric
-          label="Session Change"
-          value={`${positive ? "+" : ""}${formatCurrency(
+          label="Saved Interval Change"
+          value={hasChange ? `${positive ? "+" : ""}${formatCurrency(
             change
-          )}`}
-          hint={`${positive ? "▲" : "▼"} ${Math.abs(
+          )}` : "Unavailable"}
+          hint={hasChange && firstValue !== 0 ? `${positive ? "▲" : "▼"} ${Math.abs(
             changePercent
-          ).toFixed(2)}%`}
+          ).toFixed(2)}%` : "Two snapshots and a nonzero starting value are needed for a percentage"}
           status={positive ? "positive" : "negative"}
         />
 
@@ -269,6 +242,10 @@ export default function EquityCurve({
         ) : loading ? (
           <div className="flex h-[320px] items-center justify-center text-sm text-slate-400">
             Loading equity history...
+          </div>
+        ) : chartData.length === 0 ? (
+          <div className="flex h-[320px] items-center justify-center text-sm text-slate-400">
+            No equity history yet. Saved snapshots will appear here.
           </div>
         ) : (
           <div className="h-[320px] w-full">
