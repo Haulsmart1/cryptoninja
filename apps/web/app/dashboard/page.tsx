@@ -70,36 +70,48 @@ export default function DashboardPage() {
   const [runningTrade, setRunningTrade] = useState(false);
   const [message, setMessage] = useState("");
   const [selectedTrade, setSelectedTrade] = useState<PaperTrade | null>(null);
+  const [tradeRead, setTradeRead] = useState<"loading" | "confirmed" | "unavailable">("loading");
   const portfolioRequest = useRef(0);
+  const healthRequest = useRef(0);
+  const tradeRequest = useRef(0);
 
   async function loadHealth() {
+    const requestNumber = ++healthRequest.current;
     try {
-      const response = await fetch("/api/trading/health", { cache: "no-store" });
-      const data = await response.json();
-      setHealth(data);
+      const response = await fetch("/api/trading/health", { cache: "no-store", signal: AbortSignal.timeout(10000) });
+      if (!response.ok) throw new Error("Health unavailable");
+      const data: unknown = await response.json();
+      if (!data || typeof data !== "object" || Array.isArray(data)
+        || !("status" in data) || data.status !== "healthy"
+        || !("paper_trading" in data) || data.paper_trading !== true) throw new Error("Paper health not confirmed");
+      if (requestNumber === healthRequest.current) setHealth({ status: "healthy", paper_trading: true, cash_gbp: 0, trades: 0 });
     } catch {
-      setHealth({
-        status: "offline",
-        paper_trading: true,
-        cash_gbp: 0,
-        trades: 0,
-      });
+      if (requestNumber === healthRequest.current) setHealth(null);
     } finally {
-      setLoading(false);
+      if (requestNumber === healthRequest.current) setLoading(false);
     }
   }
 
   async function loadTrades() {
-    const supabase = createClient();
-
-    const { data, error } = await supabase
-      .from("paper_trade_logs")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    if (!error && data) {
-      setTrades(data as PaperTrade[]);
+    const requestNumber = ++tradeRequest.current;
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("paper_trade_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error || !Array.isArray(data)) throw new Error("Trade history unavailable");
+      if (requestNumber === tradeRequest.current) {
+        setTrades(data as PaperTrade[]);
+        setTradeRead("confirmed");
+      }
+    } catch {
+      if (requestNumber === tradeRequest.current) {
+        setTrades([]);
+        setSelectedTrade(null);
+        setTradeRead("unavailable");
+      }
     }
   }
 
@@ -194,6 +206,8 @@ export default function DashboardPage() {
     return () => {
       clearInterval(interval);
       portfolioRequest.current += 1;
+      healthRequest.current += 1;
+      tradeRequest.current += 1;
     };
   }, []);
 
@@ -304,8 +318,8 @@ export default function DashboardPage() {
           <Card label="Total P&L" value={signed(totalPnl, true)} />
           <Card label="Return" value={signed(totalReturn, false)} />
           <Card label="Open Positions" value={typeof portfolio?.open_position_count === "number" && Number.isSafeInteger(portfolio.open_position_count) && portfolio.open_position_count >= 0 ? String(portfolio.open_position_count) : "Not supplied"} />
-          <Card label="Saved Trades" value={String(trades.length)} />
-          <Card label="Risk" value="Protected" />
+          <Card label="Recent Saved Trades" value={tradeRead === "confirmed" ? String(trades.length) : tradeRead === "loading" ? "Loading..." : "Unavailable"} />
+          <Card label="Risk" value="Not verified" />
         </section>
 
         <div className="mt-8">
@@ -343,9 +357,9 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   <Row name="Trading Engine" status={online ? "Online" : "Offline"} detail="FastAPI service" />
-                  <Row name="Paper Broker" status="Active" detail="Simulated execution only" />
-                  <Row name="Risk Engine" status="Protected" detail="Trade limits active" />
-                  <Row name="Supabase" status="Connected" detail="Trade logs active" />
+                  <Row name="Paper Broker" status="Paper only" detail="Simulated execution only; broker activity not verified" />
+                  <Row name="Risk Engine" status="Not verified" detail="Health does not verify risk controls" />
+                  <Row name="Supabase" status={tradeRead === "confirmed" ? "Read confirmed" : tradeRead === "loading" ? "Checking" : "Unavailable"} detail="Latest paper trade history read" />
                 </tbody>
               </table>
             </div>
@@ -353,12 +367,11 @@ export default function DashboardPage() {
 
           <div className="space-y-6">
             <Panel title="AI Market Brief">
-              BTC is holding above support. ETH momentum is improving. Risk remains low.
-              Paper engine is waiting for confirmation.
+              No market brief is supplied by the health check. See the analysis panel for separately reported engine analysis.
             </Panel>
 
             <Panel title="Risk Rules">
-              Max trade size active. Daily loss limit active. Live trading remains locked.
+              PAPER ONLY. Runtime trade-size and daily-loss controls have not been verified by this dashboard.
             </Panel>
 
             <Panel title="Next Build">
@@ -480,7 +493,7 @@ export default function DashboardPage() {
                 {trades.length === 0 ? (
                   <tr>
                     <td className="p-4 text-slate-400" colSpan={6}>
-                      No paper trades logged yet.
+                      {tradeRead === "unavailable" ? "Trade history unavailable. Retry when the connection is restored." : tradeRead === "loading" ? "Loading trade history..." : "No paper trades logged yet."}
                     </td>
                   </tr>
                 ) : (
