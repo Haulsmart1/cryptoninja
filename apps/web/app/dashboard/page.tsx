@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AICommandCenter from "../../components/AICommandCenter";
 import MarketIntelligence from "../../components/MarketIntelligence";
@@ -29,7 +29,24 @@ type PortfolioSummary = {
   total_pnl: number;
   return_percent: number;
   btc_price: number;
+  open_position_count?: number;
 };
+
+function isPortfolioSummary(value: unknown): value is PortfolioSummary {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const data = value as Record<string, unknown>;
+  return ["cash", "invested", "market_value", "portfolio_value", "unrealized_pnl", "total_pnl", "return_percent", "btc_price"].every(
+    key => typeof data[key] === "number" && Number.isFinite(data[key])
+  );
+}
+
+function money(value: number | null | undefined) {
+  return value == null ? "Unavailable" : `£${value.toLocaleString("en-GB")}`;
+}
+
+function signed(value: number | null | undefined, currency: boolean) {
+  return value == null ? "Unavailable" : `${value >= 0 ? "+" : ""}${currency ? "£" : ""}${value.toFixed(2)}${currency ? "" : "%"}`;
+}
 
 type PaperTrade = {
   id: string;
@@ -53,6 +70,7 @@ export default function DashboardPage() {
   const [runningTrade, setRunningTrade] = useState(false);
   const [message, setMessage] = useState("");
   const [selectedTrade, setSelectedTrade] = useState<PaperTrade | null>(null);
+  const portfolioRequest = useRef(0);
 
   async function loadHealth() {
     try {
@@ -96,15 +114,17 @@ export default function DashboardPage() {
   }
 
   async function loadPortfolio() {
+    const requestNumber = ++portfolioRequest.current;
     try {
-      const response = await authFetch("/api/portfolio", { cache: "no-store" });
-      const data = await response.json();
-
-      if (!data.error) {
-        setPortfolio(data);
-      }
+      const response = await authFetch("/api/portfolio", {
+        cache: "no-store", signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok) throw new Error("Portfolio unavailable");
+      const data: unknown = await response.json();
+      if (!isPortfolioSummary(data)) throw new Error("Invalid portfolio");
+      if (requestNumber === portfolioRequest.current) setPortfolio(data);
     } catch {
-      setPortfolio(null);
+      if (requestNumber === portfolioRequest.current) setPortfolio(null);
     }
   }
 
@@ -170,19 +190,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     refreshAll();
-    const interval = setInterval(refreshAll, 5000);
-    return () => clearInterval(interval);
+    const interval = setInterval(refreshAll, 15000);
+    return () => {
+      clearInterval(interval);
+      portfolioRequest.current += 1;
+    };
   }, []);
-
-  const latestCash =
-    trades[0]?.cash_gbp !== null && trades[0]?.cash_gbp !== undefined
-      ? Number(trades[0].cash_gbp)
-      : health?.cash_gbp ?? 0;
-
-  const investedCapital = trades.reduce(
-    (total, trade) => total + Number(trade.value_gbp || 0),
-    0
-  );
 
   const holdings = trades.reduce<Record<string, { symbol: string; quantity: number; cost: number }>>(
     (acc, trade) => {
@@ -209,18 +222,10 @@ export default function DashboardPage() {
   );
 
   const holdingRows = Object.values(holdings).filter((holding) => holding.quantity > 0);
-  const openPositions = holdingRows.length;
-  const startingBalance = 10000;
-  const liveHoldingsValue = holdingRows.reduce((total, holding) => {
-    const livePrice = prices[holding.symbol] ?? holding.cost / holding.quantity;
-    return total + holding.quantity * livePrice;
-  }, 0);
-
-  const estimatedPortfolioValue = portfolio?.portfolio_value ?? latestCash + liveHoldingsValue;
-  const totalPnl = portfolio?.total_pnl ?? estimatedPortfolioValue - startingBalance;
-  const totalReturn = portfolio?.return_percent ?? (totalPnl / startingBalance) * 100;
-  const displayCash = portfolio?.cash ?? latestCash;
-  const displayInvested = portfolio?.invested ?? investedCapital;
+  // Recent trade logs are partial history, not a complete account ledger.
+  const portfolioValue = portfolio?.portfolio_value;
+  const totalPnl = portfolio?.total_pnl;
+  const totalReturn = portfolio?.return_percent;
 
   const online = health?.status === "healthy";
 
@@ -293,18 +298,18 @@ export default function DashboardPage() {
         </div>
 
         <section className="mt-8 grid gap-4 md:grid-cols-4">
-          <Card label="Portfolio Value" value={loading ? "Loading..." : `Â£${estimatedPortfolioValue.toLocaleString()}`} />
-          <Card label="Cash" value={`Â£${displayCash.toLocaleString()}`} />
-          <Card label="Invested" value={`Â£${displayInvested.toLocaleString()}`} />
-          <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}Â£${totalPnl.toFixed(2)}`} />
-          <Card label="Return" value={`${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`} />
-          <Card label="Open Positions" value={String(openPositions)} />
+          <Card label="Portfolio Value" value={loading ? "Loading..." : money(portfolioValue)} />
+          <Card label="Cash" value={money(portfolio?.cash)} />
+          <Card label="Invested" value={money(portfolio?.invested)} />
+          <Card label="Total P&L" value={signed(totalPnl, true)} />
+          <Card label="Return" value={signed(totalReturn, false)} />
+          <Card label="Open Positions" value={typeof portfolio?.open_position_count === "number" && Number.isSafeInteger(portfolio.open_position_count) && portfolio.open_position_count >= 0 ? String(portfolio.open_position_count) : "Not supplied"} />
           <Card label="Saved Trades" value={String(trades.length)} />
           <Card label="Risk" value="Protected" />
         </section>
 
         <div className="mt-8">
-  <EquityCurve portfolioValue={estimatedPortfolioValue} />
+  <EquityCurve />
 </div>
 
 <section className="mt-8 grid gap-6 lg:grid-cols-3">
@@ -367,20 +372,10 @@ export default function DashboardPage() {
             <h2 className="text-2xl font-black">Portfolio Allocation</h2>
 
             <div className="mt-6 space-y-4">
-              <AllocationRow label="Cash" value={latestCash} total={estimatedPortfolioValue} />
-              {holdingRows.map((holding) => {
-                const livePrice = Number(prices[holding.symbol] ?? holding.cost / holding.quantity);
-                const value = holding.quantity * livePrice;
-
-                return (
-                  <AllocationRow
-                    key={holding.symbol}
-                    label={holding.symbol}
-                    value={value}
-                    total={estimatedPortfolioValue}
-                  />
-                );
-              })}
+              {portfolio ? <>
+                <AllocationRow label="Cash" value={portfolio.cash} total={portfolio.portfolio_value} />
+                <AllocationRow label="Holdings" value={portfolio.market_value} total={portfolio.portfolio_value} />
+              </> : <p className="text-slate-400">Portfolio allocation unavailable.</p>}
             </div>
           </div>
 
@@ -388,16 +383,17 @@ export default function DashboardPage() {
             <h2 className="text-2xl font-black">Performance</h2>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <Card label="Starting Balance" value="Â£10,000" />
-              <Card label="Current Value" value={`Â£${estimatedPortfolioValue.toLocaleString()}`} />
-              <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}Â£${totalPnl.toFixed(2)}`} />
-              <Card label="Return" value={`${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`} />
+              <Card label="Starting Balance" value="Not supplied" />
+              <Card label="Current Value" value={money(portfolioValue)} />
+              <Card label="Total P&L" value={signed(totalPnl, true)} />
+              <Card label="Return" value={signed(totalReturn, false)} />
             </div>
           </div>
         </section>
 
         <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-          <h2 className="text-2xl font-black">Open Positions</h2>
+          <h2 className="text-2xl font-black">Positions from Recent Trade History</h2>
+          <p className="mt-2 text-sm text-amber-300">Estimates reconstructed from the latest 10 saved paper trades. This is partial history, not the complete portfolio.</p>
 
           <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
             <table className="w-full text-left text-sm">
