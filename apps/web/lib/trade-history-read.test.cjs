@@ -9,8 +9,8 @@ const trade = { id: 'synthetic', symbol: 'TEST-GBP', side: 'buy', quantity: '1',
 
 // Execute the actual page with synthetic database replies; no services or trades.
 function harness(reply, constructorError = false) {
-  const states = [], effects = [], timers = new Map();
-  let cursor = 0, cleanup, signal, writes = 0, timerId = 0;
+  const states = [], effects = [], refs = [], timers = new Map();
+  let cursor = 0, refCursor = 0, cleanups, signal, writes = 0, timerId = 0;
   const compiled = ts.transpileModule(readFileSync(`${__dirname}/../app/trades/page.tsx`, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText;
@@ -19,19 +19,21 @@ function harness(reply, constructorError = false) {
     then(resolve, reject) { return Promise.resolve().then(() => typeof reply === 'function' ? reply() : reply).then(resolve, reject); } };
   new Function('require', 'exports', 'setTimeout', 'clearTimeout', compiled)(name => {
     if (name === 'react/jsx-runtime') return require(name);
+    if (name === '@supabase/supabase-js') return require(name);
     if (name === 'react') return { ...React,
       useState(initial) { const i = cursor++; if (!(i in states)) states[i] = initial; return [states[i], value => { writes++; states[i] = typeof value === 'function' ? value(states[i]) : value; }]; },
+      useRef(initial) { const i = refCursor++; return refs[i] ?? (refs[i] = { current: initial }); },
       useEffect(callback) { effects.push(callback); },
     };
-    if (name.endsWith('supabase-browser')) return { createClient: () => { if (constructorError) throw new Error('private configuration'); return { from: () => query }; } };
+    if (name.endsWith('supabase-browser')) return { createClient: () => { if (constructorError) throw new Error('private configuration'); return { from: () => query, auth: { getUser: async () => ({data: {user: {id: 'synthetic'}}, error: null}), onAuthStateChange: () => ({data: {subscription: {unsubscribe() {}}}}) } }; } };
     if (name === 'next/link') return { default: ({ children }) => React.createElement('span', null, children) };
     throw new Error(`Unexpected import ${name}`);
   }, exports, (fn, ms) => { assert.equal(ms, 10000); timers.set(++timerId, fn); return timerId; }, id => timers.delete(id));
-  function render() { cursor = 0; return renderToStaticMarkup(exports.default()); }
+  function render() { cursor = 0; refCursor = 0; return renderToStaticMarkup(exports.default()); }
   return { render, get writes() { return writes; }, get signal() { return signal; },
-    async mount() { render(); cleanup = effects[0](); await settle(); },
+    async mount() { render(); cleanups = effects.slice(0, 2).map(callback => callback()); await settle(); },
     async expire() { for (const fn of [...timers.values()]) fn(); await settle(); },
-    unmount() { if (cleanup) cleanup(); },
+    unmount() { for (const cleanup of cleanups ?? []) if (cleanup) cleanup(); },
   };
 }
 

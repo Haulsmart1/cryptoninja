@@ -1,7 +1,8 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "../../lib/supabase-browser";
 
 type PaperTrade = {
@@ -32,10 +33,31 @@ function amount(value: string | number | null | undefined, currency = false) {
 
 export default function TradesPage() {
   const [trades, setTrades] = useState<PaperTrade[]>([]);
-  const [readState, setReadState] = useState<"loading" | "confirmed" | "unavailable">("loading");
+  const [readState, setReadState] = useState<"loading" | "confirmed" | "unavailable" | "signed-out">("loading");
+  const [authRevision, setAuthRevision] = useState(0);
+  const identityVersion = useRef(0);
 
   useEffect(() => {
     let active = true;
+    try {
+      const { data: { subscription } } = createClient().auth.onAuthStateChange(() => {
+        if (!active) return;
+        // The event invalidates cached UI only. The next effect verifies the
+        // current user before reading; event/session metadata is not authority.
+        identityVersion.current += 1;
+        setTrades([]);
+        setReadState("loading");
+        setAuthRevision(revision => revision + 1);
+      });
+      return () => { active = false; identityVersion.current += 1; subscription.unsubscribe(); };
+    } catch {
+      return () => { active = false; identityVersion.current += 1; };
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const version = identityVersion.current;
     const controller = new AbortController();
     let timer: ReturnType<typeof setTimeout> | undefined;
     async function loadTrades() {
@@ -46,17 +68,26 @@ export default function TradesPage() {
             reject(new Error("History read timed out"));
           }, 10000);
         });
-        const { data, error } = await Promise.race([
-          createClient().from("paper_trade_logs").select("*")
-            .order("created_at", { ascending: false }).abortSignal(controller.signal),
+        const result = await Promise.race([
+          (async () => {
+            const supabase = createClient();
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            if (!active || controller.signal.aborted || version !== identityVersion.current) return null;
+            if (authError && !isAuthSessionMissingError(authError)) throw new Error("Identity unavailable");
+            if (!user || isAuthSessionMissingError(authError)) return null;
+            return supabase.from("paper_trade_logs").select("*")
+              .order("created_at", { ascending: false }).abortSignal(controller.signal);
+          })(),
           deadline,
         ]);
+        if (!active || version !== identityVersion.current) return;
+        if (result === null) { setTrades([]); setReadState("signed-out"); return; }
+        const { data, error } = result;
         if (error || !Array.isArray(data) || !data.every(isPaperTrade)) throw new Error("History unavailable");
-        if (!active) return;
         setTrades(data);
         setReadState("confirmed");
       } catch {
-        if (!active) return;
+        if (!active || version !== identityVersion.current) return;
         setTrades([]);
         setReadState("unavailable");
       } finally {
@@ -70,7 +101,7 @@ export default function TradesPage() {
       controller.abort();
       clearTimeout(timer);
     };
-  }, []);
+  }, [authRevision]);
 
   return (
     <main className="min-h-screen bg-[#020617] p-8 text-white">
@@ -97,6 +128,7 @@ export default function TradesPage() {
           <p className="mt-3 text-sm text-slate-400">Saved paper records returned for this account. Server row limits may apply.</p>
           {readState === "loading" && <p className="mt-6 text-slate-300" role="status">Loading paper trade history…</p>}
           {readState === "unavailable" && <p className="mt-6 text-amber-300" role="alert">Trade history unavailable. Your saved records have not been changed. Reload to try again.</p>}
+          {readState === "signed-out" && <p className="mt-6 text-slate-300" role="status"><Link href="/login">Sign in to view your paper trade history.</Link></p>}
           {readState === "confirmed" && trades.length === 0 && <p className="mt-6 text-slate-300" role="status">No paper trades returned.</p>}
 
           <div className="mt-8 overflow-x-auto rounded-2xl border border-white/10">
