@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -25,6 +25,8 @@ type RawSnapshot = {
 
 function normalizeSnapshots(rows: RawSnapshot[]): Snapshot[] {
   return rows
+    .filter(row => typeof row.portfolio_value === "number" ||
+      (typeof row.portfolio_value === "string" && row.portfolio_value.trim() !== ""))
     .map((row) => ({
       portfolio_value: Number(row.portfolio_value),
       created_at: String(row.created_at ?? ""),
@@ -122,22 +124,7 @@ export default function PortfolioChart() {
     };
   }, [load]);
 
-  const chartData = useMemo(() => {
-    if (data.length !== 1) {
-      return data;
-    }
-
-    const firstPoint = data[0];
-    const firstTime = new Date(firstPoint.created_at).getTime();
-
-    return [
-      firstPoint,
-      {
-        ...firstPoint,
-        created_at: new Date(firstTime + 60_000).toISOString(),
-      },
-    ];
-  }, [data]);
+  const chartData = data;
 
   return (
     <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">

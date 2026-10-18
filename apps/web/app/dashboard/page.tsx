@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import AICommandCenter from "../../components/AICommandCenter";
 import MarketIntelligence from "../../components/MarketIntelligence";
@@ -29,7 +29,24 @@ type PortfolioSummary = {
   total_pnl: number;
   return_percent: number;
   btc_price: number;
+  open_position_count?: number;
 };
+
+function isPortfolioSummary(value: unknown): value is PortfolioSummary {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const data = value as Record<string, unknown>;
+  return ["cash", "invested", "market_value", "portfolio_value", "unrealized_pnl", "total_pnl", "return_percent", "btc_price"].every(
+    key => typeof data[key] === "number" && Number.isFinite(data[key])
+  );
+}
+
+function money(value: number | null | undefined) {
+  return value == null ? "Unavailable" : `£${value.toLocaleString("en-GB")}`;
+}
+
+function signed(value: number | null | undefined, currency: boolean) {
+  return value == null ? "Unavailable" : `${value >= 0 ? "+" : ""}${currency ? "£" : ""}${value.toFixed(2)}${currency ? "" : "%"}`;
+}
 
 type PaperTrade = {
   id: string;
@@ -44,7 +61,114 @@ type PaperTrade = {
   created_at: string;
 };
 
+// One boundary owns the complete account-derived view, including every child
+// subscription and selected-trade modal. Auth events invalidate it synchronously;
+// verification runs in a later effect, never inside the Auth callback.
 export default function DashboardPage() {
+  const [owner, setOwner] = useState<string | null>(null);
+  const [revision, setRevision] = useState(0);
+  const [identity, setIdentity] = useState<"checking" | "signed-out" | "unavailable">("checking");
+  const generation = useRef(0);
+  const expectedOwner = useRef<string | null | undefined>(undefined);
+  const listening = useRef(false);
+  const signOutRequest = useRef<{ owner: string; valid: boolean } | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutMessage, setSignOutMessage] = useState("");
+
+  async function signOut() {
+    if (!owner || signOutRequest.current) return;
+    const operation = { owner, valid: true };
+    signOutRequest.current = operation;
+    setSigningOut(true);
+    setSignOutMessage("");
+    const current = () => operation.valid && signOutRequest.current === operation;
+    const timer = setTimeout(() => {
+      if (!current()) return;
+      operation.valid = false;
+      // The SDK request may still finish. Do not issue another mutation until
+      // reload has re-established the session, or claim a successful logout.
+      setSignOutMessage("Sign-out could not be confirmed. Reload to check your session.");
+    }, 10000);
+    try {
+      const client = createClient();
+      const { data: identity, error: identityError } = await client.auth.getUser();
+      if (!current()) return;
+      if (identityError || identity.user?.id !== operation.owner) throw new Error("Identity changed");
+      const { error } = await client.auth.signOut({ scope: "local" });
+      if (!current()) return;
+      if (error) throw new Error("Sign-out unavailable");
+      const { data, error: sessionError } = await client.auth.getSession();
+      if (!current()) return;
+      if (sessionError || data.session !== null) throw new Error("Sign-out not confirmed");
+      window.location.assign("/login");
+    } catch {
+      if (current()) {
+        setSignOutMessage("Sign-out could not be confirmed. Reload to check your session.");
+        // An uncertain mutation is not safe to retry against a changed session.
+        operation.valid = false;
+      }
+    } finally { clearTimeout(timer); }
+  }
+
+  useEffect(() => {
+    let active = true;
+    try {
+      const { data: { subscription } } = createClient().auth.onAuthStateChange((event, session) => {
+        if (!active) return;
+        if (event !== "SIGNED_OUT" && signOutRequest.current) {
+          signOutRequest.current.valid = false;
+          // Invalidate navigation, but retain the mutation lock: the original
+          // SDK sign-out cannot be cancelled and may still be in flight.
+          setSignOutMessage("Your session changed during sign-out. Reload to check your session.");
+        }
+        generation.current += 1;
+        expectedOwner.current = event === "SIGNED_OUT" ? null : session?.user?.id ?? null;
+        setOwner(null);
+        setIdentity(expectedOwner.current === null ? "signed-out" : "checking");
+        setRevision(value => value + 1);
+      });
+      listening.current = true;
+      return () => { active = false; listening.current = false; generation.current += 1; if (signOutRequest.current) signOutRequest.current.valid = false; subscription.unsubscribe(); };
+    } catch {
+      setIdentity("unavailable");
+      return () => { active = false; generation.current += 1; if (signOutRequest.current) signOutRequest.current.valid = false; };
+    }
+  }, []);
+
+  useEffect(() => {
+    const current = ++generation.current;
+    let pending = true;
+    if (!listening.current) { setIdentity("unavailable"); return; }
+    if (expectedOwner.current === null) return;
+    const timer = setTimeout(() => {
+      if (pending && current === generation.current) {
+        pending = false;
+        setOwner(null);
+        setIdentity("unavailable");
+      }
+    }, 10000);
+    void (async () => {
+      try {
+        const { data, error } = await createClient().auth.getUser();
+        if (!pending || current !== generation.current) return;
+        if (error) throw new Error("Identity unavailable");
+        if (!data.user) { setOwner(null); setIdentity("signed-out"); return; }
+        if (expectedOwner.current !== undefined && expectedOwner.current !== data.user.id) throw new Error("Identity changed");
+        setOwner(data.user.id);
+      } catch {
+        if (pending && current === generation.current) { setOwner(null); setIdentity("unavailable"); }
+      } finally { pending = false; clearTimeout(timer); }
+    })();
+    return () => { pending = false; clearTimeout(timer); };
+  }, [revision]);
+
+  if (!owner) return <main className="mx-auto max-w-xl px-6 py-16"><p role="status">{
+    signOutRequest.current ? "Sign-out is pending or unconfirmed. Reload to check your session before signing in again." : identity === "checking" ? "Checking your account..." : identity === "signed-out" ? "Sign in to view your dashboard." : "Account verification unavailable. Reload to retry."
+  }</p>{signOutMessage && <p role="alert">{signOutMessage}</p>}{!signOutRequest.current && <Link href="/login">Sign in</Link>}</main>;
+  return <><div className="mx-auto max-w-7xl px-6 pt-6"><button type="button" disabled={signingOut} onClick={() => void signOut()} className="rounded-xl border border-white/10 px-4 py-2 disabled:opacity-50">{signingOut ? signOutMessage ? "Sign-out unavailable" : "Signing out..." : "Sign out of this browser"}</button>{signOutMessage && <p role="alert">{signOutMessage}</p>}</div><DashboardContent key={`${owner}:${revision}`} /></>;
+}
+
+function DashboardContent() {
   const [health, setHealth] = useState<EngineHealth | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [trades, setTrades] = useState<PaperTrade[]>([]);
@@ -53,35 +177,48 @@ export default function DashboardPage() {
   const [runningTrade, setRunningTrade] = useState(false);
   const [message, setMessage] = useState("");
   const [selectedTrade, setSelectedTrade] = useState<PaperTrade | null>(null);
+  const [tradeRead, setTradeRead] = useState<"loading" | "confirmed" | "unavailable">("loading");
+  const portfolioRequest = useRef(0);
+  const healthRequest = useRef(0);
+  const tradeRequest = useRef(0);
 
   async function loadHealth() {
+    const requestNumber = ++healthRequest.current;
     try {
-      const response = await fetch("/api/trading/health", { cache: "no-store" });
-      const data = await response.json();
-      setHealth(data);
+      const response = await fetch("/api/trading/health", { cache: "no-store", signal: AbortSignal.timeout(10000) });
+      if (!response.ok) throw new Error("Health unavailable");
+      const data: unknown = await response.json();
+      if (!data || typeof data !== "object" || Array.isArray(data)
+        || !("status" in data) || data.status !== "healthy"
+        || !("paper_trading" in data) || data.paper_trading !== true) throw new Error("Paper health not confirmed");
+      if (requestNumber === healthRequest.current) setHealth({ status: "healthy", paper_trading: true, cash_gbp: 0, trades: 0 });
     } catch {
-      setHealth({
-        status: "offline",
-        paper_trading: true,
-        cash_gbp: 0,
-        trades: 0,
-      });
+      if (requestNumber === healthRequest.current) setHealth(null);
     } finally {
-      setLoading(false);
+      if (requestNumber === healthRequest.current) setLoading(false);
     }
   }
 
   async function loadTrades() {
-    const supabase = createClient();
-
-    const { data, error } = await supabase
-      .from("paper_trade_logs")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    if (!error && data) {
-      setTrades(data as PaperTrade[]);
+    const requestNumber = ++tradeRequest.current;
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("paper_trade_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error || !Array.isArray(data)) throw new Error("Trade history unavailable");
+      if (requestNumber === tradeRequest.current) {
+        setTrades(data as PaperTrade[]);
+        setTradeRead("confirmed");
+      }
+    } catch {
+      if (requestNumber === tradeRequest.current) {
+        setTrades([]);
+        setSelectedTrade(null);
+        setTradeRead("unavailable");
+      }
     }
   }
 
@@ -96,15 +233,17 @@ export default function DashboardPage() {
   }
 
   async function loadPortfolio() {
+    const requestNumber = ++portfolioRequest.current;
     try {
-      const response = await authFetch("/api/portfolio", { cache: "no-store" });
-      const data = await response.json();
-
-      if (!data.error) {
-        setPortfolio(data);
-      }
+      const response = await authFetch("/api/portfolio", {
+        cache: "no-store", signal: AbortSignal.timeout(10000),
+      });
+      if (!response.ok) throw new Error("Portfolio unavailable");
+      const data: unknown = await response.json();
+      if (!isPortfolioSummary(data)) throw new Error("Invalid portfolio");
+      if (requestNumber === portfolioRequest.current) setPortfolio(data);
     } catch {
-      setPortfolio(null);
+      if (requestNumber === portfolioRequest.current) setPortfolio(null);
     }
   }
 
@@ -170,19 +309,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     refreshAll();
-    const interval = setInterval(refreshAll, 5000);
-    return () => clearInterval(interval);
+    const interval = setInterval(refreshAll, 15000);
+    return () => {
+      clearInterval(interval);
+      portfolioRequest.current += 1;
+      healthRequest.current += 1;
+      tradeRequest.current += 1;
+    };
   }, []);
-
-  const latestCash =
-    trades[0]?.cash_gbp !== null && trades[0]?.cash_gbp !== undefined
-      ? Number(trades[0].cash_gbp)
-      : health?.cash_gbp ?? 0;
-
-  const investedCapital = trades.reduce(
-    (total, trade) => total + Number(trade.value_gbp || 0),
-    0
-  );
 
   const holdings = trades.reduce<Record<string, { symbol: string; quantity: number; cost: number }>>(
     (acc, trade) => {
@@ -209,18 +343,10 @@ export default function DashboardPage() {
   );
 
   const holdingRows = Object.values(holdings).filter((holding) => holding.quantity > 0);
-  const openPositions = holdingRows.length;
-  const startingBalance = 10000;
-  const liveHoldingsValue = holdingRows.reduce((total, holding) => {
-    const livePrice = prices[holding.symbol] ?? holding.cost / holding.quantity;
-    return total + holding.quantity * livePrice;
-  }, 0);
-
-  const estimatedPortfolioValue = portfolio?.portfolio_value ?? latestCash + liveHoldingsValue;
-  const totalPnl = portfolio?.total_pnl ?? estimatedPortfolioValue - startingBalance;
-  const totalReturn = portfolio?.return_percent ?? (totalPnl / startingBalance) * 100;
-  const displayCash = portfolio?.cash ?? latestCash;
-  const displayInvested = portfolio?.invested ?? investedCapital;
+  // Recent trade logs are partial history, not a complete account ledger.
+  const portfolioValue = portfolio?.portfolio_value;
+  const totalPnl = portfolio?.total_pnl;
+  const totalReturn = portfolio?.return_percent;
 
   const online = health?.status === "healthy";
 
@@ -293,18 +419,18 @@ export default function DashboardPage() {
         </div>
 
         <section className="mt-8 grid gap-4 md:grid-cols-4">
-          <Card label="Portfolio Value" value={loading ? "Loading..." : `Â£${estimatedPortfolioValue.toLocaleString()}`} />
-          <Card label="Cash" value={`Â£${displayCash.toLocaleString()}`} />
-          <Card label="Invested" value={`Â£${displayInvested.toLocaleString()}`} />
-          <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}Â£${totalPnl.toFixed(2)}`} />
-          <Card label="Return" value={`${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`} />
-          <Card label="Open Positions" value={String(openPositions)} />
-          <Card label="Saved Trades" value={String(trades.length)} />
-          <Card label="Risk" value="Protected" />
+          <Card label="Portfolio Value" value={loading ? "Loading..." : money(portfolioValue)} />
+          <Card label="Cash" value={money(portfolio?.cash)} />
+          <Card label="Invested" value={money(portfolio?.invested)} />
+          <Card label="Total P&L" value={signed(totalPnl, true)} />
+          <Card label="Return" value={signed(totalReturn, false)} />
+          <Card label="Open Positions" value={typeof portfolio?.open_position_count === "number" && Number.isSafeInteger(portfolio.open_position_count) && portfolio.open_position_count >= 0 ? String(portfolio.open_position_count) : "Not supplied"} />
+          <Card label="Recent Saved Trades" value={tradeRead === "confirmed" ? String(trades.length) : tradeRead === "loading" ? "Loading..." : "Unavailable"} />
+          <Card label="Risk" value="Not verified" />
         </section>
 
         <div className="mt-8">
-  <EquityCurve portfolioValue={estimatedPortfolioValue} />
+  <EquityCurve />
 </div>
 
 <section className="mt-8 grid gap-6 lg:grid-cols-3">
@@ -338,9 +464,9 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   <Row name="Trading Engine" status={online ? "Online" : "Offline"} detail="FastAPI service" />
-                  <Row name="Paper Broker" status="Active" detail="Simulated execution only" />
-                  <Row name="Risk Engine" status="Protected" detail="Trade limits active" />
-                  <Row name="Supabase" status="Connected" detail="Trade logs active" />
+                  <Row name="Paper Broker" status="Paper only" detail="Simulated execution only; broker activity not verified" />
+                  <Row name="Risk Engine" status="Not verified" detail="Health does not verify risk controls" />
+                  <Row name="Supabase" status={tradeRead === "confirmed" ? "Read confirmed" : tradeRead === "loading" ? "Checking" : "Unavailable"} detail="Latest paper trade history read" />
                 </tbody>
               </table>
             </div>
@@ -348,12 +474,11 @@ export default function DashboardPage() {
 
           <div className="space-y-6">
             <Panel title="AI Market Brief">
-              BTC is holding above support. ETH momentum is improving. Risk remains low.
-              Paper engine is waiting for confirmation.
+              No market brief is supplied by the health check. See the analysis panel for separately reported engine analysis.
             </Panel>
 
             <Panel title="Risk Rules">
-              Max trade size active. Daily loss limit active. Live trading remains locked.
+              PAPER ONLY. Runtime trade-size and daily-loss controls have not been verified by this dashboard.
             </Panel>
 
             <Panel title="Next Build">
@@ -367,20 +492,10 @@ export default function DashboardPage() {
             <h2 className="text-2xl font-black">Portfolio Allocation</h2>
 
             <div className="mt-6 space-y-4">
-              <AllocationRow label="Cash" value={latestCash} total={estimatedPortfolioValue} />
-              {holdingRows.map((holding) => {
-                const livePrice = Number(prices[holding.symbol] ?? holding.cost / holding.quantity);
-                const value = holding.quantity * livePrice;
-
-                return (
-                  <AllocationRow
-                    key={holding.symbol}
-                    label={holding.symbol}
-                    value={value}
-                    total={estimatedPortfolioValue}
-                  />
-                );
-              })}
+              {portfolio ? <>
+                <AllocationRow label="Cash" value={portfolio.cash} total={portfolio.portfolio_value} />
+                <AllocationRow label="Holdings" value={portfolio.market_value} total={portfolio.portfolio_value} />
+              </> : <p className="text-slate-400">Portfolio allocation unavailable.</p>}
             </div>
           </div>
 
@@ -388,16 +503,17 @@ export default function DashboardPage() {
             <h2 className="text-2xl font-black">Performance</h2>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <Card label="Starting Balance" value="Â£10,000" />
-              <Card label="Current Value" value={`Â£${estimatedPortfolioValue.toLocaleString()}`} />
-              <Card label="Total P&L" value={`${totalPnl >= 0 ? "+" : ""}Â£${totalPnl.toFixed(2)}`} />
-              <Card label="Return" value={`${totalReturn >= 0 ? "+" : ""}${totalReturn.toFixed(2)}%`} />
+              <Card label="Starting Balance" value="Not supplied" />
+              <Card label="Current Value" value={money(portfolioValue)} />
+              <Card label="Total P&L" value={signed(totalPnl, true)} />
+              <Card label="Return" value={signed(totalReturn, false)} />
             </div>
           </div>
         </section>
 
         <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-          <h2 className="text-2xl font-black">Open Positions</h2>
+          <h2 className="text-2xl font-black">Positions from Recent Trade History</h2>
+          <p className="mt-2 text-sm text-amber-300">Estimates reconstructed from the latest 10 saved paper trades. This is partial history, not the complete portfolio.</p>
 
           <div className="mt-6 overflow-hidden rounded-2xl border border-white/10">
             <table className="w-full text-left text-sm">
@@ -484,7 +600,7 @@ export default function DashboardPage() {
                 {trades.length === 0 ? (
                   <tr>
                     <td className="p-4 text-slate-400" colSpan={6}>
-                      No paper trades logged yet.
+                      {tradeRead === "unavailable" ? "Trade history unavailable. Retry when the connection is restored." : tradeRead === "loading" ? "Loading trade history..." : "No paper trades logged yet."}
                     </td>
                   </tr>
                 ) : (

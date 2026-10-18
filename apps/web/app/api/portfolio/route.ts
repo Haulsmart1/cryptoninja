@@ -2,21 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+const responseHeaders = {
+  "Cache-Control": "private, no-store, no-cache, must-revalidate",
+};
+
 export async function GET(request: NextRequest) {
   const configuredEngineUrl = process.env.TRADING_ENGINE_URL;
   const authorization = request.headers.get("authorization");
 
-  if (!configuredEngineUrl) {
+  if (!authorization) {
     return NextResponse.json(
-      { error: "TRADING_ENGINE_URL is not configured." },
-      { status: 503 }
+      { error: "Authentication is required." },
+      { status: 401, headers: responseHeaders }
     );
   }
 
-  if (!authorization) {
+  if (!configuredEngineUrl) {
     return NextResponse.json(
-      { error: "Authorization header is required." },
-      { status: 401 }
+      { error: "Trading engine is not configured." },
+      { status: 503, headers: responseHeaders }
     );
   }
 
@@ -28,6 +32,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`${engineUrl}/portfolio`, {
       method: "GET",
       cache: "no-store",
+      signal: AbortSignal.timeout(10_000),
       headers: {
         Accept: "application/json",
         Authorization: authorization,
@@ -36,45 +41,42 @@ export async function GET(request: NextRequest) {
 
     const responseText = await response.text();
 
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: "Trading engine returned an error." },
+        { status: response.status >= 400 ? response.status : 502, headers: responseHeaders }
+      );
+    }
+
     let data: unknown;
 
     try {
-      data = responseText
-        ? JSON.parse(responseText)
-        : {};
+      data = JSON.parse(responseText);
     } catch {
-      data = {
-        error:
-          responseText ||
-          "Trading engine returned an invalid response.",
-      };
+      data = null;
+    }
+
+    const summary = data as Record<string, unknown> | null;
+    if (!summary || typeof summary !== "object" || Array.isArray(summary) ||
+        !["cash", "invested", "market_value", "portfolio_value", "unrealized_pnl", "total_pnl", "return_percent", "btc_price"].every(
+          key => typeof summary[key] === "number" && Number.isFinite(summary[key])
+        )) {
+      return NextResponse.json(
+        { error: "Trading engine returned an invalid portfolio." },
+        { status: 502, headers: responseHeaders }
+      );
     }
 
     return NextResponse.json(data, {
       status: response.status,
-      headers: {
-        "Cache-Control":
-          "no-store, no-cache, must-revalidate",
-      },
+      headers: responseHeaders,
     });
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unknown portfolio proxy error.";
-
-    console.error("Portfolio proxy failed:", {
-      engineUrl,
-      message,
-      error,
-    });
-
+  } catch {
     return NextResponse.json(
       {
         error: "Unable to connect to trading engine.",
-        detail: message,
       },
-      { status: 503 }
+      { status: 503, headers: responseHeaders }
     );
   }
 }
