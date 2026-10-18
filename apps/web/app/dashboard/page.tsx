@@ -61,7 +61,70 @@ type PaperTrade = {
   created_at: string;
 };
 
+// One boundary owns the complete account-derived view, including every child
+// subscription and selected-trade modal. Auth events invalidate it synchronously;
+// verification runs in a later effect, never inside the Auth callback.
 export default function DashboardPage() {
+  const [owner, setOwner] = useState<string | null>(null);
+  const [revision, setRevision] = useState(0);
+  const [identity, setIdentity] = useState<"checking" | "signed-out" | "unavailable">("checking");
+  const generation = useRef(0);
+  const expectedOwner = useRef<string | null | undefined>(undefined);
+  const listening = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    try {
+      const { data: { subscription } } = createClient().auth.onAuthStateChange((event, session) => {
+        if (!active) return;
+        generation.current += 1;
+        expectedOwner.current = event === "SIGNED_OUT" ? null : session?.user?.id ?? null;
+        setOwner(null);
+        setIdentity(expectedOwner.current === null ? "signed-out" : "checking");
+        setRevision(value => value + 1);
+      });
+      listening.current = true;
+      return () => { active = false; listening.current = false; generation.current += 1; subscription.unsubscribe(); };
+    } catch {
+      setIdentity("unavailable");
+      return () => { active = false; generation.current += 1; };
+    }
+  }, []);
+
+  useEffect(() => {
+    const current = ++generation.current;
+    let pending = true;
+    if (!listening.current) { setIdentity("unavailable"); return; }
+    if (expectedOwner.current === null) return;
+    const timer = setTimeout(() => {
+      if (pending && current === generation.current) {
+        pending = false;
+        setOwner(null);
+        setIdentity("unavailable");
+      }
+    }, 10000);
+    void (async () => {
+      try {
+        const { data, error } = await createClient().auth.getUser();
+        if (!pending || current !== generation.current) return;
+        if (error) throw new Error("Identity unavailable");
+        if (!data.user) { setOwner(null); setIdentity("signed-out"); return; }
+        if (expectedOwner.current !== undefined && expectedOwner.current !== data.user.id) throw new Error("Identity changed");
+        setOwner(data.user.id);
+      } catch {
+        if (pending && current === generation.current) { setOwner(null); setIdentity("unavailable"); }
+      } finally { pending = false; clearTimeout(timer); }
+    })();
+    return () => { pending = false; clearTimeout(timer); };
+  }, [revision]);
+
+  if (!owner) return <main className="mx-auto max-w-xl px-6 py-16"><p role="status">{
+    identity === "checking" ? "Checking your account..." : identity === "signed-out" ? "Sign in to view your dashboard." : "Account verification unavailable. Reload to retry."
+  }</p><Link href="/login">Sign in</Link></main>;
+  return <DashboardContent key={`${owner}:${revision}`} />;
+}
+
+function DashboardContent() {
   const [health, setHealth] = useState<EngineHealth | null>(null);
   const [portfolio, setPortfolio] = useState<PortfolioSummary | null>(null);
   const [trades, setTrades] = useState<PaperTrade[]>([]);
