@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Analysis = {
   symbol: string;
@@ -12,37 +12,60 @@ type Analysis = {
   reason: string;
 };
 
+function isAnalysis(value: unknown): value is Analysis {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const data = value as Record<string, unknown>;
+  return ["symbol", "action", "trend", "momentum", "reason"].every(
+    (key) => typeof data[key] === "string" && (data[key] as string).trim().length > 0
+  ) && typeof data.confidence === "number" && Number.isFinite(data.confidence) &&
+    data.confidence >= 0 && data.confidence <= 100 &&
+    typeof data.rsi === "number" && Number.isFinite(data.rsi) && data.rsi >= 0 && data.rsi <= 100;
+}
+
 export default function AIReasoningPanel() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [loading, setLoading] = useState(true);
+  const requestSequence = useRef(0);
 
-  async function loadAnalysis() {
+  const loadAnalysis = useCallback(async () => {
+    const requestNumber = ++requestSequence.current;
     try {
       const response = await fetch("/api/trading/analysis/BTC-GBP", {
         cache: "no-store",
+        signal: AbortSignal.timeout(10000),
       });
 
-      if (!response.ok) {
-        return;
-      }
-
-      setAnalysis(await response.json());
+      if (!response.ok) throw new Error("Analysis unavailable");
+      const data: unknown = await response.json();
+      if (!isAnalysis(data)) throw new Error("Invalid analysis");
+      if (requestNumber !== requestSequence.current) return;
+      setAnalysis(data);
     } catch {
-      // Ignore network errors; we'll retry on the next refresh.
+      if (requestNumber !== requestSequence.current) return;
+      // Previous advice does not establish the engine's current decision.
+      setAnalysis(null);
+    } finally {
+      if (requestNumber === requestSequence.current) setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     loadAnalysis();
 
-    const timer = setInterval(loadAnalysis, 5000);
+    // Poll less often than the request deadline so a stalled service can
+    // resolve to unavailable before the next scheduled request begins.
+    const timer = setInterval(loadAnalysis, 15000);
 
-    return () => clearInterval(timer);
-  }, []);
+    return () => {
+      clearInterval(timer);
+      requestSequence.current += 1;
+    };
+  }, [loadAnalysis]);
 
   if (!analysis) {
     return (
-      <div className="rounded-3xl border border-cyan-400/20 bg-cyan-500/5 p-6">
-        Loading AI Analysis...
+      <div role="status" className="rounded-3xl border border-cyan-400/20 bg-cyan-500/5 p-6">
+        {loading ? "Loading AI Analysis..." : "AI analysis unavailable. Retrying automatically."}
       </div>
     );
   }
@@ -52,6 +75,7 @@ export default function AIReasoningPanel() {
       <h2 className="text-2xl font-black text-cyan-300">
         🧠 AI Market Analysis
       </h2>
+      <p className="mt-2 text-sm text-amber-300">Paper trading analysis only.</p>
 
       <div className="mt-6 space-y-4">
 
