@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:auth": "node --test lib/auth-flow.test.mjs lib/email-verification.test.mjs lib/email-route.test.mjs lib/human-confirm.test.mjs",
-    "test:status": "node --test lib/autotrader-unavailable.test.cjs lib/status-proxy.test.cjs lib/analysis-unavailable.test.cjs lib/portfolio-integrity.test.cjs lib/portfolio-proxy.test.cjs lib/dashboard-observation.test.cjs lib/market-poll-integrity.test.cjs"
+    "test:status": "node --test lib/autotrader-unavailable.test.cjs lib/status-proxy.test.cjs lib/analysis-unavailable.test.cjs lib/portfolio-integrity.test.cjs lib/portfolio-proxy.test.cjs lib/dashboard-observation.test.cjs lib/market-poll-integrity.test.cjs lib/trade-history-read.test.cjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
