@@ -1,4 +1,4 @@
-﻿from dataclasses import dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -38,7 +38,7 @@ class PaperBroker:
             quantity=quantity,
             price=price,
             value_gbp=value_gbp,
-            status="filled",
+            status="filled_paper",
             reason=reason,
             created_at=datetime.now(timezone.utc).isoformat(),
         )

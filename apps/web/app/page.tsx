@@ -1,74 +1,45 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-  title: "CryptoNinja AI | AI Crypto Trading Platform",
+  title: "CryptoNinja | £10 Paper-Trading Review",
   description:
-    "CryptoNinja AI is an AI-powered crypto trading platform with paper trading, risk controls, portfolio analytics, exchange integrations and subscription access.",
-  keywords: [
-    "AI crypto trading bot",
-    "crypto trading platform",
-    "paper trading bot",
-    "crypto risk management",
-    "automated crypto trading",
-    "crypto portfolio dashboard",
-  ],
+    "A review-only crypto paper-trading simulator with a £10 virtual bankroll. No real funds or exchange orders.",
   openGraph: {
-    title: "CryptoNinja AI | AI Crypto Trading Platform",
+    title: "CryptoNinja | £10 Paper-Trading Review",
     description:
-      "AI-powered crypto trading with paper trading, risk controls, exchange integrations and portfolio analytics.",
+      "Review-only paper trading with a £10 virtual bankroll and no real-money execution.",
     url: "https://crypto-ninja.app",
-    siteName: "CryptoNinja AI",
+    siteName: "CryptoNinja",
     type: "website",
   },
   twitter: {
-    card: "summary_large_image",
-    title: "CryptoNinja AI",
+    card: "summary",
+    title: "CryptoNinja £10 Paper-Trading Review",
     description:
-      "AI-powered crypto trading with paper trading, risk controls and portfolio analytics.",
+      "Simulated trading only. No real funds, exchange credentials or live orders.",
   },
 };
 
-const statuses = [
-  "Trading Engine Online",
-  "AI Monitoring Markets",
-  "Risk Engine Active",
-  "Paper Trading Ready",
+const boundaries = [
+  ["Bankroll", "£10 virtual cash"],
+  ["Order cap", "£1 simulated value"],
+  ["Execution", "Paper fills only"],
+  ["Real money", "Never used"],
 ];
 
-const connections = [
-  ["Coinbase Advanced", "Available first for market data and execution"],
-  ["Supabase", "Authentication, database and realtime platform"],
-  ["Stripe", "Subscription billing and customer portal"],
-  ["OpenAI", "AI market briefs and trading analysis"],
-  ["Telegram", "Trade alerts and risk warnings"],
-  ["TradingView", "Charts and market visuals"],
-  ["Binance", "Planned exchange connector"],
-  ["Kraken", "Planned exchange connector"],
-  ["Bybit", "Planned exchange connector"],
-];
-
-const features = [
-  ["AI Market Brief", "Clear market summaries with confidence, trend and volatility insight."],
-  ["Risk Engine", "Capital protection with limits, drawdown controls and safe position sizing."],
-  ["Paper Trading", "Test strategies safely before live execution."],
-  ["Portfolio Intelligence", "Track balances, exposure, performance and open positions."],
-  ["Strategy Automation", "Run trading strategies through a modular engine."],
-  ["Alerts", "Telegram, email and dashboard notifications for important events."],
+const reviewScope = [
+  ["Paper ledger", "Records simulated fills as filled_paper."],
+  ["Risk limits", "Rejects a bankroll above £10 and a paper order above £1."],
+  ["Fail-closed mode", "The engine refuses to start if PAPER_TRADING is false."],
+  ["Observed results", "Portfolio values come from recorded paper activity, not promised returns."],
 ];
 
 const roadmap = [
-  ["Live", "Landing page, dashboard shell, Supabase setup"],
-  ["Next", "Magic Link login, protected dashboard, user profiles"],
-  ["Soon", "Stripe subscriptions, Coinbase paper trading, risk rules"],
-  ["Later", "AI analysis engine, backtesting, multi-exchange support"],
-];
-
-const plans = [
-  ["Starter", "£19/mo", "Paper trading, AI insights and basic dashboard"],
-  ["Pro", "£49/mo", "Live trading, alerts, backtesting and advanced analytics"],
-  ["Elite", "£99/mo", "Multi-exchange support, portfolio optimisation and priority features"],
+  ["Now", "Review the £10 paper-only journey."],
+  ["Next", "Verify hosted login, account isolation and paper-ledger persistence."],
+  ["Later", "Decide whether a paid paper-simulation service is commercially viable."],
 ];
 
 export default async function HomePage({
@@ -79,22 +50,19 @@ export default async function HomePage({
   const query = await searchParams;
 
   if (query?.code) {
-    redirect(`/auth/callback?code=${encodeURIComponent(query.code)}&next=/dashboard`);
+    redirect(
+      `/auth/callback?code=${encodeURIComponent(query.code)}&next=/dashboard`
+    );
   }
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: "CryptoNinja AI",
+    name: "CryptoNinja",
     applicationCategory: "FinanceApplication",
     operatingSystem: "Web",
     description:
-      "AI-powered crypto trading platform with paper trading, risk controls, subscriptions and portfolio analytics.",
-    offers: {
-      "@type": "Offer",
-      price: "19",
-      priceCurrency: "GBP",
-    },
+      "Review-only paper-trading simulator with a £10 virtual bankroll. No real-money execution.",
   };
 
   return (
@@ -104,123 +72,120 @@ export default async function HomePage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      <section className="mx-auto max-w-7xl px-6 py-8">
-        <nav className="flex items-center justify-between">
+      <section className="mx-auto max-w-6xl px-6 py-8">
+        <nav className="flex items-center justify-between gap-4">
           <Link href="/" className="text-2xl font-black">
-            CryptoNinja <span className="text-cyan-300">AI</span>
+            CryptoNinja <span className="text-cyan-300">Paper</span>
           </Link>
-
           <div className="flex gap-3">
-            <Link href="/dashboard" className="rounded-xl border border-white/10 px-5 py-3 text-sm font-bold hover:bg-white/10">
-              Demo
+            <Link
+              href="/login"
+              className="rounded-xl border border-white/10 px-5 py-3 text-sm font-bold hover:bg-white/10"
+            >
+              Review login
             </Link>
-            <Link href="/login" className="rounded-xl border border-white/10 px-5 py-3 text-sm font-bold hover:bg-white/10">Log in</Link><Link href="/register" className="rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 hover:bg-cyan-200">Register</Link>
+            <Link
+              href="/dashboard"
+              className="rounded-xl bg-cyan-300 px-5 py-3 text-sm font-black text-slate-950 hover:bg-cyan-200"
+            >
+              Open paper dashboard
+            </Link>
           </div>
         </nav>
 
-        <div className="grid min-h-[78vh] items-center gap-12 py-20 lg:grid-cols-2">
+        <div className="grid min-h-[68vh] items-center gap-12 py-20 lg:grid-cols-2">
           <div>
             <p className="text-sm font-bold tracking-[0.35em] text-cyan-300">
-              AUTONOMOUS CRYPTO COMMAND CENTER
+              REVIEW BUILD · PAPER ONLY
             </p>
             <h1 className="mt-5 text-5xl font-black leading-tight md:text-7xl">
-              Trade smarter. Protect capital. Let AI do the heavy lifting.
+              Test the decisions. Never risk real money.
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
-              CryptoNinja AI combines market intelligence, paper trading, risk
-              controls, subscription access and portfolio analytics in one
-              professional trading platform.
+              CryptoNinja is currently a limited paper-trading review with a
+              £10 virtual bankroll. It does not place exchange orders, accept
+              deposits or promise returns.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
-              <Link href="/register" className="rounded-2xl bg-cyan-300 px-7 py-4 font-black text-slate-950 hover:bg-cyan-200">Create free account</Link>
-              <Link href="/dashboard" className="rounded-2xl border border-white/10 px-7 py-4 font-black hover:bg-white/10">
-                View Dashboard
+              <Link
+                href="/dashboard"
+                className="rounded-2xl bg-cyan-300 px-7 py-4 font-black text-slate-950 hover:bg-cyan-200"
+              >
+                View paper dashboard
               </Link>
+              <span className="rounded-2xl border border-white/10 px-7 py-4 font-bold text-slate-300">
+                Billing disabled
+              </span>
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5 shadow-2xl">
+          <div className="rounded-[2rem] border border-cyan-300/20 bg-white/[0.04] p-5 shadow-2xl">
             <div className="rounded-[1.5rem] bg-[#050b1f] p-6">
               <div className="flex items-center justify-between border-b border-white/10 pb-5">
                 <div>
-                  <p className="text-xs tracking-[0.3em] text-cyan-300">COMMAND CENTER</p>
-                  <h2 className="mt-2 text-2xl font-black">System Healthy</h2>
+                  <p className="text-xs tracking-[0.3em] text-cyan-300">
+                    SAFETY BOUNDARY
+                  </p>
+                  <h2 className="mt-2 text-2xl font-black">
+                    £10 review candidate
+                  </h2>
                 </div>
-                <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm font-bold text-emerald-300">
-                  Online
+                <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-bold text-cyan-200">
+                  Paper only
                 </span>
               </div>
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                <Card label="Portfolio" value="£10,000" />
-                <Card label="Today P&L" value="+£10.52" />
-                <Card label="AI Confidence" value="78%" />
-                <Card label="Mode" value="Paper" />
+                {boundaries.map(([label, value]) => (
+                  <Card key={label} label={label} value={value} />
+                ))}
               </div>
 
               <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-5">
-                <p className="font-black">AI Market Brief</p>
+                <p className="font-black">No performance claim</p>
                 <p className="mt-3 text-sm leading-6 text-slate-400">
-                  BTC is holding above support. ETH momentum is improving.
-                  Risk remains low. Paper engine is waiting for confirmation.
+                  Market analysis and paper outcomes may be unavailable or
+                  wrong. Nothing here is financial advice or evidence of
+                  profitability.
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="grid gap-3 pb-16 md:grid-cols-4">
-          {statuses.map((status) => (
-            <div key={status} className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm font-bold text-emerald-300">
-              ● {status}
-            </div>
-          ))}
-        </div>
-
-        <SectionTitle eyebrow="Connected Platform" title="Connect exchanges, AI, billing and alerts." />
-        <div className="grid gap-4 pb-16 md:grid-cols-3">
-          {connections.map(([name, description]) => (
+        <SectionTitle
+          eyebrow="Verified scope"
+          title="A tiny simulation with explicit limits."
+        />
+        <div className="grid gap-4 pb-16 md:grid-cols-2">
+          {reviewScope.map(([name, description]) => (
             <Card key={name} label={name} value={description} />
           ))}
         </div>
 
-        <SectionTitle eyebrow="Features" title="Built for serious automated trading." />
-        <div className="grid gap-4 pb-16 md:grid-cols-3">
-          {features.map(([name, description]) => (
-            <Card key={name} label={name} value={description} />
-          ))}
+        <SectionTitle
+          eyebrow="Commercial status"
+          title="Not for sale and not connected to real trading."
+        />
+        <div className="mb-16 rounded-3xl border border-amber-300/20 bg-amber-300/10 p-6">
+          <p className="text-xl font-black text-amber-200">Review access only</p>
+          <p className="mt-3 max-w-3xl leading-7 text-slate-300">
+            Registration, payment and subscription offers are not accepted in
+            this candidate. A paid paper-simulation service requires separate
+            approval after hosted authentication, ledger isolation and the
+            complete £10 paper journey pass.
+          </p>
         </div>
 
-        <SectionTitle eyebrow="Pricing" title="Subscription plans for every trader." />
+        <SectionTitle eyebrow="Roadmap" title="Evidence before expansion." />
         <div className="grid gap-4 pb-16 md:grid-cols-3">
-          {plans.map(([name, price, description]) => (
-            <div key={name} className="rounded-3xl border border-white/10 bg-white/[0.04] p-6">
-              <p className="text-2xl font-black">{name}</p>
-              <p className="mt-3 text-4xl font-black text-cyan-300">{price}</p>
-              <p className="mt-4 text-sm leading-6 text-slate-400">{description}</p>
-              <p className="mt-6 rounded-xl border border-white/10 px-4 py-3 text-center text-sm font-bold text-slate-300">
-                Coming Soon
-              </p>
-            </div>
-          ))}
-        </div>
-
-        <SectionTitle eyebrow="Roadmap" title="Transparent build progress." />
-        <div className="grid gap-4 pb-16 md:grid-cols-4">
           {roadmap.map(([stage, text]) => (
             <Card key={stage} label={stage} value={text} />
           ))}
         </div>
 
         <footer className="border-t border-white/10 py-10 text-sm text-slate-500">
-          <div className="flex flex-col justify-between gap-4 md:flex-row">
-            <p>© 2026 CryptoNinja AI. Built for disciplined crypto automation.</p>
-            <div className="flex gap-5">
-              <Link href="/login">Login</Link>
-              <Link href="/dashboard">Demo</Link>
-              <Link href="/">Roadmap</Link>
-            </div>
-          </div>
+          © 2026 CryptoNinja. Review-only paper simulation.
         </footer>
       </section>
     </main>
@@ -230,8 +195,12 @@ export default async function HomePage({
 function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <div className="mb-6">
-      <p className="text-sm font-bold tracking-[0.35em] text-cyan-300">{eyebrow}</p>
-      <h2 className="mt-3 max-w-3xl text-3xl font-black md:text-5xl">{title}</h2>
+      <p className="text-sm font-bold tracking-[0.35em] text-cyan-300">
+        {eyebrow}
+      </p>
+      <h2 className="mt-3 max-w-3xl text-3xl font-black md:text-5xl">
+        {title}
+      </h2>
     </div>
   );
 }
@@ -244,8 +213,3 @@ function Card({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-
-
-
-
